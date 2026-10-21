@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { AuthCard } from '@/components/auth/auth-card';
 import { loginSchema } from '@/lib/validations/auth';
 import { createClient } from '@/lib/supabase/client';
@@ -14,6 +14,7 @@ function LoginContent() {
   const rawRedirect = searchParams.get('redirect') || '/dashboard';
   const redirectTarget = (!rawRedirect.startsWith('/auth') || rawRedirect.startsWith('/auth/verified')) ? rawRedirect : '/dashboard';
   const urlError = searchParams.get('error');
+  const isVerified = searchParams.get('verified') === 'true';
 
   const initialEmail = searchParams.get('email') || '';
   const [email, setEmail] = useState(initialEmail);
@@ -31,9 +32,20 @@ function LoginContent() {
     }
   }, [urlError]);
 
+  useEffect(() => {
+    const queryEmail = searchParams.get('email');
+    if (queryEmail) {
+      setEmail(queryEmail);
+    }
+  }, [searchParams]);
+
   // If user already has an active verified session, take them directly to the dashboard
+  // BUT do not auto-redirect if they arrived from an email confirmation link to sign in
   useEffect(() => {
     async function checkExistingSession() {
+      if (searchParams.get('verified') || searchParams.get('email')) {
+        return;
+      }
       try {
         const supabase = createClient();
         const {
@@ -48,7 +60,7 @@ function LoginContent() {
       }
     }
     checkExistingSession();
-  }, [redirectTarget]);
+  }, [redirectTarget, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +84,14 @@ function LoginContent() {
 
     try {
       const supabase = createClient();
+
+      // Sign out any old session to ensure a clean state
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Ignored
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: result.data.email,
         password: result.data.password,
@@ -118,7 +138,7 @@ function LoginContent() {
   return (
     <AuthCard
       title="Welcome back"
-      subtitle="Sign in to your Obiba account."
+      subtitle={isVerified ? "Sign in to access your Obiba dashboard." : "Sign in to your Obiba account."}
       footer={
         <div className="text-center text-xs text-[#6E6E73] font-medium">
           Don't have an account?{' '}
@@ -129,6 +149,18 @@ function LoginContent() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {isVerified && (
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-900">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-emerald-800">Email confirmed successfully!</div>
+              <div className="text-emerald-700 text-[11px] mt-0.5">
+                Please enter your password below to sign in to your Obiba dashboard.
+              </div>
+            </div>
+          </div>
+        )}
+
         {serverError && (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />

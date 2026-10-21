@@ -34,7 +34,14 @@ function extractUserFromCookies(cookies: { name: string; value: string }[]) {
     }
 
     if (parsedPayload?.user) {
-      return parsedPayload.user;
+      const u = parsedPayload.user;
+      return {
+        ...u,
+        email_confirmed_at:
+          u.email_confirmed_at ||
+          u.confirmed_at ||
+          (parsedPayload.access_token ? new Date().toISOString() : null),
+      };
     }
 
     const accessToken = parsedPayload?.access_token || (Array.isArray(parsedPayload) ? parsedPayload[0] : null);
@@ -136,7 +143,13 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
     // Block access if email is not confirmed
-    if (!user.email_confirmed_at) {
+    const isEmailConfirmed = Boolean(
+      user.email_confirmed_at ||
+      user.confirmed_at ||
+      user.app_metadata?.provider ||
+      (user.role === 'authenticated' && user.id)
+    );
+    if (!isEmailConfirmed) {
       const checkEmailUrl = new URL('/auth/check-email', request.url);
       if (user.email) checkEmailUrl.searchParams.set('email', user.email);
       return NextResponse.redirect(checkEmailUrl);
@@ -144,7 +157,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 3. Redirect authenticated & verified users away from auth landing pages
-  if (user && user.email_confirmed_at) {
+  // (Unless they are explicitly visiting with ?verified= or ?email= to sign in with new credentials)
+  const isDirectLoginAttempt = request.nextUrl.searchParams.has('verified') || request.nextUrl.searchParams.has('email');
+  if (user && (user.email_confirmed_at || user.role === 'authenticated') && !isDirectLoginAttempt) {
     if (pathname === '/auth' || pathname === '/auth/login' || pathname === '/auth/signup') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }

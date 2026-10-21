@@ -42,7 +42,7 @@ function CheckEmailContent() {
         type: 'signup',
         email: rawEmail,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?email=${encodeURIComponent(rawEmail)}`,
         },
       });
 

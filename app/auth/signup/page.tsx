@@ -61,7 +61,7 @@ export default function SignupPage() {
             phone_number: normalizedPhone,
             country_code: 'GH',
           },
-          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?email=${encodeURIComponent(result.data.email)}`,
         },
       });
 
