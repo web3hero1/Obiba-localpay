@@ -14,7 +14,8 @@ function LoginContent() {
   const redirectTarget = searchParams.get('redirect') || '/dashboard';
   const urlError = searchParams.get('error');
 
-  const [email, setEmail] = useState('');
+  const initialEmail = searchParams.get('email') || '';
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 

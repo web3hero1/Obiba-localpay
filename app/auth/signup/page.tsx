@@ -66,12 +66,20 @@ export default function SignupPage() {
       });
 
       if (error) {
-        // Secure error handling without disclosing sensitive internal state
-        if (error.message.includes('User already registered') || error.message.includes('already exists')) {
-          setServerError('An account with this email address already exists. Please sign in or use a different email.');
+        // Handle existing account error
+        const msg = error.message.toLowerCase();
+        if (msg.includes('already registered') || msg.includes('already exists') || error.status === 422) {
+          setServerError('An account with this email address already exists. Please sign in or reset your password.');
         } else {
           setServerError(error.message || 'Unable to create account. Please check your details and try again.');
         }
+        setIsLoading(false);
+        return;
+      }
+
+      // Supabase anti-enumeration detection: If email already exists, identities is an empty array
+      if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+        setServerError('An account with this email address already exists. Please sign in or reset your password.');
         setIsLoading(false);
         return;
       }
@@ -113,9 +121,22 @@ export default function SignupPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {serverError && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800">
+          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <span>{serverError}</span>
+            <div className="space-y-1.5 flex-1">
+              <div className="font-medium leading-relaxed">{serverError}</div>
+              {serverError.includes('already exists') && (
+                <div>
+                  <Link
+                    href={`/auth/login?email=${encodeURIComponent(email)}`}
+                    className="inline-flex items-center gap-1 font-bold text-[#0A84FF] hover:underline text-xs"
+                  >
+                    <span>Click here to Sign In</span>
+                    <span>→</span>
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
