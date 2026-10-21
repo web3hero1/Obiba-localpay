@@ -156,11 +156,9 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // 3. Redirect authenticated & verified users away from auth landing pages
-  // (Unless they are explicitly visiting with ?verified= or ?email= to sign in with new credentials)
-  const isDirectLoginAttempt = request.nextUrl.searchParams.has('verified') || request.nextUrl.searchParams.has('email');
-  if (user && (user.email_confirmed_at || user.role === 'authenticated') && !isDirectLoginAttempt) {
-    if (pathname === '/auth' || pathname === '/auth/login' || pathname === '/auth/signup') {
+  // 3. Redirect authenticated & verified users away from auth landing root (/auth)
+  if (user && (user.email_confirmed_at || user.role === 'authenticated')) {
+    if (pathname === '/auth') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }

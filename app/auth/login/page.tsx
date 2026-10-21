@@ -39,29 +39,6 @@ function LoginContent() {
     }
   }, [searchParams]);
 
-  // If user already has an active verified session, take them directly to the dashboard
-  // BUT do not auto-redirect if they arrived from an email confirmation link to sign in
-  useEffect(() => {
-    async function checkExistingSession() {
-      if (searchParams.get('verified') || searchParams.get('email')) {
-        return;
-      }
-      try {
-        const supabase = createClient();
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.user && session.user.email_confirmed_at) {
-          setIsRedirecting(true);
-          window.location.replace(redirectTarget);
-        }
-      } catch {
-        // Continue showing login screen
-      }
-    }
-    checkExistingSession();
-  }, [redirectTarget, searchParams]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});

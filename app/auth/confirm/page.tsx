@@ -2,13 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Loader2, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { AuthCard } from '@/components/auth/auth-card';
 
 function ConfirmContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -22,17 +21,6 @@ function ConfirmContent() {
       const emailFromQuery = searchParams.get('email') || '';
       let resolvedEmail = emailFromQuery;
 
-      const redirectToLogin = async (email: string) => {
-        try {
-          await supabase.auth.signOut();
-        } catch {
-          // Ignored
-        }
-        const encodedEmail = encodeURIComponent(email);
-        // Immediate redirect to sign in page as requested
-        window.location.replace(`/auth/login?verified=true&email=${encodedEmail}`);
-      };
-
       try {
         // 1. Check if hash fragment contains access_token (standard Supabase ConfirmationURL redirect)
         if (typeof window !== 'undefined' && window.location.hash) {
@@ -43,10 +31,14 @@ function ConfirmContent() {
           const errorDesc = hashParams.get('error_description') || hashParams.get('error');
 
           if (errorDesc) {
-            // If already confirmed or token consumed, direct user to sign in
             const lowerError = errorDesc.toLowerCase();
+            // If already confirmed or token consumed, direct user to sign in
             if (lowerError.includes('already') || lowerError.includes('expired') || lowerError.includes('invalid')) {
-              await redirectToLogin(resolvedEmail);
+              try { await supabase.auth.signOut(); } catch {}
+              if (isMounted) {
+                setTargetEmail(resolvedEmail);
+                setStatus('success');
+              }
               return;
             }
             if (isMounted) {
@@ -64,9 +56,12 @@ function ConfirmContent() {
 
             if (!sessionError) {
               const email = sessionData?.user?.email || resolvedEmail;
-              setTargetEmail(email);
-              if (isMounted) setStatus('success');
-              setTimeout(() => redirectToLogin(email), 400);
+              // CRITICAL: Do NOT sign them in directly! Sign out so they explicitly sign in with password.
+              try { await supabase.auth.signOut(); } catch {}
+              if (isMounted) {
+                setTargetEmail(email);
+                setStatus('success');
+              }
               return;
             }
           }
@@ -81,7 +76,11 @@ function ConfirmContent() {
         if (queryError) {
           const lowerError = queryError.toLowerCase();
           if (lowerError.includes('already') || lowerError.includes('expired') || lowerError.includes('invalid')) {
-            await redirectToLogin(resolvedEmail);
+            try { await supabase.auth.signOut(); } catch {}
+            if (isMounted) {
+              setTargetEmail(resolvedEmail);
+              setStatus('success');
+            }
             return;
           }
           if (isMounted) {
@@ -95,12 +94,11 @@ function ConfirmContent() {
           const { data: codeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (!exchangeError) {
             const email = codeData?.user?.email || resolvedEmail;
-            setTargetEmail(email);
-            if (isMounted) setStatus('success');
-            if (type === 'recovery') {
-              router.push('/auth/reset-password');
-            } else {
-              setTimeout(() => redirectToLogin(email), 400);
+            // CRITICAL: Do NOT sign them in directly! Sign out so they explicitly sign in.
+            try { await supabase.auth.signOut(); } catch {}
+            if (isMounted) {
+              setTargetEmail(email);
+              setStatus('success');
             }
             return;
           }
@@ -114,44 +112,49 @@ function ConfirmContent() {
 
           if (!otpError) {
             const email = otpData?.user?.email || resolvedEmail;
-            setTargetEmail(email);
-            if (isMounted) setStatus('success');
-            if (type === 'recovery') {
-              router.push('/auth/reset-password');
-            } else {
-              setTimeout(() => redirectToLogin(email), 400);
+            // CRITICAL: Do NOT sign them in directly! Sign out so they explicitly sign in.
+            try { await supabase.auth.signOut(); } catch {}
+            if (isMounted) {
+              setTargetEmail(email);
+              setStatus('success');
             }
             return;
           } else {
-            // If token was already used / verified, bring user to sign in
             const lowerError = otpError.message.toLowerCase();
             if (lowerError.includes('expired') || lowerError.includes('already') || lowerError.includes('invalid')) {
-              await redirectToLogin(resolvedEmail);
+              try { await supabase.auth.signOut(); } catch {}
+              if (isMounted) {
+                setTargetEmail(resolvedEmail);
+                setStatus('success');
+              }
               return;
             }
           }
         }
 
-        // 3. Check if user is already authenticated and verified in session
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
+        // 3. Check if user is already authenticated and verified
+        const { data: { user } } = await supabase.auth.getUser();
         if (user && user.email_confirmed_at) {
           const email = user.email || resolvedEmail;
-          setTargetEmail(email);
-          if (isMounted) setStatus('success');
-          setTimeout(() => redirectToLogin(email), 400);
+          try { await supabase.auth.signOut(); } catch {}
+          if (isMounted) {
+            setTargetEmail(email);
+            setStatus('success');
+          }
           return;
         }
 
-        // 4. If an email is known from query, route to sign in
+        // 4. Fallback: if email is present, mark as confirmed and prompt to sign in
         if (resolvedEmail) {
-          await redirectToLogin(resolvedEmail);
+          try { await supabase.auth.signOut(); } catch {}
+          if (isMounted) {
+            setTargetEmail(resolvedEmail);
+            setStatus('success');
+          }
           return;
         }
 
-        // 5. Fallback notice
+        // 5. Unrecognized link
         if (isMounted) {
           setStatus('error');
           setErrorMessage(
@@ -160,7 +163,11 @@ function ConfirmContent() {
         }
       } catch (err: any) {
         if (resolvedEmail) {
-          await redirectToLogin(resolvedEmail);
+          try { await supabase.auth.signOut(); } catch {}
+          if (isMounted) {
+            setTargetEmail(resolvedEmail);
+            setStatus('success');
+          }
           return;
         }
         if (isMounted) {
@@ -175,7 +182,7 @@ function ConfirmContent() {
     return () => {
       isMounted = false;
     };
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   if (status === 'verifying') {
     return (
@@ -186,7 +193,7 @@ function ConfirmContent() {
           </div>
           <div className="space-y-1">
             <p className="text-sm font-semibold text-[#0B0B0C]">Confirming your email...</p>
-            <p className="text-xs text-[#6E6E73]">Preparing your sign-in to the Obiba dashboard.</p>
+            <p className="text-xs text-[#6E6E73]">Securing your financial profile and USDC ledger.</p>
           </div>
         </div>
       </AuthCard>
@@ -226,21 +233,40 @@ function ConfirmContent() {
     );
   }
 
+  // SUCCESS SCREEN: Tell users their email is confirmed and to now sign in!
   return (
-    <AuthCard title="Email Confirmed" subtitle="Taking you to the sign in page...">
-      <div className="py-8 flex flex-col items-center justify-center space-y-4 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
-          <CheckCircle2 className="w-8 h-8" />
+    <AuthCard title="Email Confirmed!" subtitle="Your Obiba account is activated and ready.">
+      <div className="space-y-6 text-center">
+        {/* Animated Checkmark */}
+        <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+          <CheckCircle2 className="w-9 h-9" />
         </div>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-[#0B0B0C]">Email confirmed successfully!</p>
-          <p className="text-xs text-[#6E6E73]">Redirecting to Sign In...</p>
+
+        <div className="space-y-2">
+          <h2 className="text-lg font-extrabold text-[#0B0B0C]">
+            Email Verified Successfully
+          </h2>
+          <p className="text-xs text-[#6E6E73] leading-relaxed max-w-sm mx-auto">
+            Your email has been confirmed. Please now sign in with your email and password to access your dashboard, available USDC balance, and everyday payments.
+          </p>
         </div>
+
+        <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200 flex items-center gap-2.5 text-xs text-left text-emerald-950 font-medium">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>Account verified. One USDC balance & double-entry ledger active.</span>
+        </div>
+
+        {/* Primary CTA: Tell users to now sign in */}
         <Link
-          href={targetEmail ? `/auth/login?verified=true&email=${encodeURIComponent(targetEmail)}` : '/auth/login?verified=true'}
-          className="text-xs text-[#0A84FF] font-bold hover:underline pt-2 block"
+          href={
+            targetEmail
+              ? `/auth/login?verified=true&email=${encodeURIComponent(targetEmail)}`
+              : '/auth/login?verified=true'
+          }
+          className="w-full py-3.5 px-6 bg-[#0A84FF] hover:bg-[#0066CC] text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-[0.99] transition duration-150"
         >
-          Click here if not redirected automatically
+          <span>Sign In to Your Account</span>
+          <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
     </AuthCard>
