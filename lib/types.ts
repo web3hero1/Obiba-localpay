@@ -53,6 +53,8 @@ export interface NearIntentsAsset {
   minDeposit: number;
   contractAddress: string;
   networks: string[];
+  testnetNetworks: string[];
+  mainnetNetworks: string[];
 }
 
 export type DepositStatus =
@@ -68,6 +70,7 @@ export type DepositStatus =
 export interface DepositIntent {
   intentId: string;
   userId: string;
+  environment: 'testnet' | 'mainnet';
   sourceAsset: string;
   sourceAmount: number;
   network: string;

@@ -5,9 +5,13 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const intentId = body.intentId;
+    const autoFinish = body.autoFinish ?? false;
     if (!intentId) throw new Error('Missing intentId');
 
-    const intent = nearIntents.stepLifecycle(intentId);
+    const intent = autoFinish
+      ? nearIntents.completeIntent(intentId)
+      : nearIntents.stepLifecycle(intentId);
+
     return NextResponse.json(intent);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 400 });
