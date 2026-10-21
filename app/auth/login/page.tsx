@@ -83,11 +83,11 @@ function LoginContent() {
       router.refresh();
     } catch (err: any) {
       console.error('Login error:', err);
-      const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder') || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('demo-obiba-project');
+      const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (isMissingConfig) {
-        setServerError('Supabase configuration missing: Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local to enable live authentication.');
+        setServerError('Obiba authentication service configuration is missing. Please contact support.');
       } else {
-        setServerError(err.message || 'A network error occurred while communicating with the authentication service. Please try again.');
+        setServerError(err.message || 'A network error occurred while communicating with the Obiba authentication service. Please try again.');
       }
       setIsLoading(false);
     }

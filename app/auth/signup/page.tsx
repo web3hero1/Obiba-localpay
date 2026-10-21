@@ -81,11 +81,11 @@ export default function SignupPage() {
       router.push(`/auth/check-email?email=${encodedEmail}`);
     } catch (err: any) {
       console.error('Signup error:', err);
-      const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder') || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('demo-obiba-project');
+      const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (isMissingConfig) {
-        setServerError('Supabase configuration missing: Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local to dispatch real verification emails.');
+        setServerError('Obiba authentication service configuration is missing. Please contact support.');
       } else {
-        setServerError(err.message || 'A network error occurred while communicating with the authentication service. Please try again.');
+        setServerError(err.message || 'A network error occurred while communicating with the Obiba authentication service. Please try again.');
       }
       setIsLoading(false);
     }
