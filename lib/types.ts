@@ -99,7 +99,8 @@ export interface TransactionRecord {
     | 'TRANSFER_OUT'
     | 'BILL_PAYMENT'
     | 'AIRTIME'
-    | 'DATA';
+    | 'DATA'
+    | 'MERCHANT_PAY';
   status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REVERSED';
   grossAmountMicro: number;
   feeAmountMicro: number;

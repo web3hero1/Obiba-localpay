@@ -16,6 +16,11 @@ import {
   ExternalLink,
   ShieldCheck,
   ChevronRight,
+  QrCode,
+  Store,
+  Send,
+  Home,
+  Sliders,
 } from 'lucide-react';
 import { UserBalance, DepositIntent, TransactionRecord, LedgerJournal } from '@/lib/types';
 
@@ -26,6 +31,7 @@ export default function ObibaApp() {
   const [custodyUsdc, setCustodyUsdc] = useState<number>(0);
   const [feeRevenue, setFeeRevenue] = useState<number>(0);
   const [showInspector, setShowInspector] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'home' | 'pay' | 'scan' | 'activity' | 'inspect'>('home');
 
   // Modals & Active Sections
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -46,6 +52,7 @@ export default function ObibaApp() {
   const [meterValidation, setMeterValidation] = useState<string>('Kwame Mensah - East Legon (RLV)');
   const [ecgAmountGhs, setEcgAmountGhs] = useState<number>(100);
 
+  const [merchantReq, setMerchantReq] = useState<any>(null);
   const [receiptData, setReceiptData] = useState<any>(null);
 
   // Initial Data Fetching
@@ -217,11 +224,57 @@ export default function ObibaApp() {
     }
   };
 
+  // Merchant QR Scanner / Payment
+  const handleScanMerchantQR = async () => {
+    try {
+      const res = await fetch('/api/merchant/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          merchantName: 'Starbites Restaurant - Osu',
+          category: 'Dining & Food',
+          amountGhs: 120.0,
+        }),
+      });
+      const req = await res.json();
+      setMerchantReq(req);
+      setActiveModal('scan-merchant');
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handlePayMerchant = async () => {
+    if (!merchantReq) return;
+    try {
+      const res = await fetch('/api/merchant/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: merchantReq.requestId }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      setActiveModal(null);
+      setMerchantReq(null);
+      await fetchWallet();
+      await fetchTransactions();
+      await fetchLedger();
+      setReceiptData({
+        title: 'Merchant Payment Settled',
+        subtitle: `Paid GH₵${data.amountGhs.toFixed(2)} to ${data.merchantName}.`,
+        detail: `Debited $${data.debitedUsdcDisplay} USDC from available balance.`,
+      });
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen p-3 lg:p-6 gap-6 justify-center items-start max-w-7xl mx-auto">
       
       {/* ================= LEFT: OBIBA WEB APP VIEWPORT ================= */}
-      <div className="w-full lg:w-[440px] bg-white rounded-3xl border border-brand-border shadow-xl overflow-hidden flex flex-col">
+      <div className="w-full lg:w-[450px] bg-white rounded-3xl border border-brand-border shadow-xl overflow-hidden flex flex-col relative">
         
         {/* Header */}
         <div className="p-5 border-b border-brand-border/60 flex justify-between items-center bg-brand-bg/50">
@@ -230,7 +283,7 @@ export default function ObibaApp() {
               O
             </div>
             <div>
-              <div className="text-xs text-brand-secondary font-medium">Obiba Web App · Hackathon MVP</div>
+              <div className="text-xs text-brand-secondary font-medium">Obiba Web Platform · NEAR Intents</div>
               <div className="text-sm font-bold text-brand-text flex items-center gap-1.5">
                 <span>Kwame Mensah</span>
                 <span className="text-[11px] bg-blue-100 text-brand-blue font-semibold px-2 py-0.5 rounded-full">Ghana</span>
@@ -246,10 +299,10 @@ export default function ObibaApp() {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-5">
+        {/* Content Body */}
+        <div className="p-5 space-y-5 pb-24">
           
-          {/* Main One-USDC Balance Card */}
+          {/* Main One-USDC Balance Card (PRD §7.1) */}
           <div className="bg-gradient-to-br from-[#0A84FF] to-[#0066CC] text-white p-5 rounded-3xl shadow-lg relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div>
@@ -278,7 +331,7 @@ export default function ObibaApp() {
                 className="py-2.5 px-3 bg-white text-brand-blue font-bold rounded-2xl flex items-center justify-center gap-2 text-xs shadow hover:bg-blue-50 transition active:scale-95"
               >
                 <Coins className="w-4 h-4" />
-                <span>Deposit Crypto</span>
+                <span>+ Deposit Crypto</span>
               </button>
               <button
                 onClick={() => setActiveModal('payout-momo')}
@@ -290,7 +343,7 @@ export default function ObibaApp() {
             </div>
           </div>
 
-          {/* NEAR Intents 1Click Badge */}
+          {/* NEAR Intents 1Click Active Ribbon */}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-brand-blue text-white flex items-center justify-center text-xs font-bold">
@@ -312,7 +365,7 @@ export default function ObibaApp() {
           {/* Everyday Services Grid */}
           <div>
             <div className="text-xs font-bold text-brand-secondary uppercase tracking-wider mb-2.5">
-              Everyday Services
+              Everyday Ghanaian Services
             </div>
             <div className="grid grid-cols-4 gap-2.5">
               <button
@@ -346,13 +399,13 @@ export default function ObibaApp() {
               </button>
 
               <button
-                onClick={() => alert('Airtime recharge demo ready.')}
+                onClick={handleScanMerchantQR}
                 className="p-3 bg-white border border-brand-border rounded-2xl flex flex-col items-center justify-center hover:border-brand-blue transition group"
               >
-                <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition">
-                  <Wifi className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mb-1 group-hover:scale-105 transition">
+                  <Store className="w-5 h-5" />
                 </div>
-                <span className="text-xs font-semibold text-brand-text">Airtime</span>
+                <span className="text-xs font-semibold text-brand-text">Merchant QR</span>
               </button>
             </div>
           </div>
@@ -387,7 +440,7 @@ export default function ObibaApp() {
                           <CheckCircle2 className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-brand-text truncate max-w-[170px]">
+                          <div className="text-xs font-bold text-brand-text truncate max-w-[180px]">
                             {tx.description}
                           </div>
                           <div className="text-[10px] text-brand-secondary">
@@ -409,6 +462,29 @@ export default function ObibaApp() {
             </div>
           </div>
 
+        </div>
+
+        {/* Navigation Bar (Home, Pay, Scan, Activity) */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur border-t border-brand-border px-6 flex justify-between items-center z-10">
+          <button onClick={() => setActiveTab('home')} className="flex flex-col items-center text-brand-blue">
+            <Home className="w-5 h-5" />
+            <span className="text-[10px] font-bold mt-1">Home</span>
+          </button>
+          <button onClick={() => setActiveModal('payout-momo')} className="flex flex-col items-center text-brand-secondary hover:text-brand-blue transition">
+            <Send className="w-5 h-5" />
+            <span className="text-[10px] font-medium mt-1">Pay</span>
+          </button>
+          <button onClick={handleScanMerchantQR} className="w-11 h-11 -mt-4 bg-brand-blue rounded-full text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition">
+            <QrCode className="w-5 h-5" />
+          </button>
+          <button onClick={fetchTransactions} className="flex flex-col items-center text-brand-secondary hover:text-brand-blue transition">
+            <Clock className="w-5 h-5" />
+            <span className="text-[10px] font-medium mt-1">Activity</span>
+          </button>
+          <button onClick={() => setShowInspector(!showInspector)} className="flex flex-col items-center text-brand-secondary hover:text-brand-blue transition">
+            <Sliders className="w-5 h-5" />
+            <span className="text-[10px] font-medium mt-1">Audit</span>
+          </button>
         </div>
 
       </div>
@@ -702,6 +778,44 @@ export default function ObibaApp() {
                 Authorize & Send Payout
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: SCAN MERCHANT QR (PRD §18) ================= */}
+      {activeModal === 'scan-merchant' && merchantReq && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-base text-brand-text">Merchant QR Scanned</h3>
+                <p className="text-xs text-brand-secondary">Pay directly from your USDC balance</p>
+              </div>
+              <button onClick={() => setActiveModal(null)} className="p-1 rounded-full text-brand-secondary hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-2xl space-y-2 text-center">
+              <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center mx-auto text-lg font-bold">
+                <Store className="w-6 h-6" />
+              </div>
+              <div className="font-bold text-base text-brand-text">{merchantReq.merchantName}</div>
+              <div className="text-xs text-brand-secondary">{merchantReq.merchantCategory}</div>
+              <div className="text-2xl font-extrabold text-brand-text mt-2">
+                GH₵{merchantReq.amountGhs.toFixed(2)}
+              </div>
+              <div className="text-xs text-brand-secondary">
+                Debits: ≈ <strong className="text-brand-blue">${(merchantReq.amountGhs / 15.25).toFixed(2)} USDC</strong>
+              </div>
+            </div>
+
+            <button
+              onClick={handlePayMerchant}
+              className="w-full py-3 bg-brand-blue text-white font-bold rounded-xl text-xs shadow hover:bg-brand-darkBlue transition"
+            >
+              Authorize Payment (${(merchantReq.amountGhs / 15.25).toFixed(2)} USDC)
+            </button>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 /**
- * Obiba Core Financial Platform — Ghana Local Rails & Bill Fulfillment (PRD §10, §14-§17)
+ * Obiba Core Financial Platform — Ghana Local Rails & Merchant Payments (PRD §10, §14-§18)
  */
 
 import { EcgBillFulfillment, TransactionRecord } from './types';
@@ -10,6 +10,7 @@ import {
   userReservedAccount,
   ASSET_USDC_SETTLEMENT,
   ASSET_GHS_TREASURY,
+  REVENUE_SERVICE_FEES,
 } from './ledger';
 
 export const GHANA_MOMO_NETWORKS = [
@@ -18,11 +19,21 @@ export const GHANA_MOMO_NETWORKS = [
   { id: 'AT', name: 'AT Money' },
 ];
 
+export interface MerchantPaymentRequest {
+  requestId: string;
+  merchantName: string;
+  merchantCategory: string;
+  amountGhs: number;
+  qrPayload: string;
+  status: 'PENDING' | 'PAID' | 'EXPIRED';
+  expiresAt: number;
+}
+
 class GhanaRailsService {
   private transactions: TransactionRecord[] = [];
+  private merchantRequests: Map<string, MerchantPaymentRequest> = new Map();
 
   constructor() {
-    // Seed initial transaction
     this.transactions.push({
       transactionId: 'tx_seed_001',
       userId: 'user_gh_founder',
@@ -33,10 +44,13 @@ class GhanaRailsService {
       netAmountMicro: 56_280_000,
       currency: 'USDC',
       counterparty: 'NEAR Intents (SOL)',
-      description: 'Deposit 1.0 SOL via NEAR Intents',
+      description: 'Deposit 1.0 SOL via NEAR Intents 1Click',
       journalId: 'jnl_init_01',
       createdAt: Math.floor(Date.now() / 1000) - 3600,
     });
+
+    // Seed sample merchant request
+    this.createMerchantRequest('Starbites Restaurant - Osu', 'Dining & Food', 150.0);
   }
 
   public getTransactions(userId: string): TransactionRecord[] {
@@ -137,7 +151,6 @@ class GhanaRailsService {
       ],
     });
 
-    // Settlement
     const settleRef = `SETTLE-MOMO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const journalId = ledger.recordJournal({
       reference: settleRef,
@@ -216,7 +229,6 @@ class GhanaRailsService {
 
     const validation = this.validateMeter(params.meterNumber);
 
-    // Generate 20-digit token
     const randDigits = () => Math.floor(1000 + Math.random() * 9000);
     const token = `${randDigits()}-${randDigits()}-${randDigits()}-${randDigits()}-${randDigits()}`;
     const kwhUnits = Math.round((params.amountGhs / 1.55) * 10) / 10;
@@ -277,7 +289,7 @@ class GhanaRailsService {
     };
   }
 
-  // 4. Airtime & Data Bundles
+  // 4. Airtime & Mobile Data Recharge
   public rechargeTelecom(params: {
     userId: string;
     category: 'AIRTIME' | 'DATA';
@@ -336,50 +348,73 @@ class GhanaRailsService {
     };
   }
 
-  // 5. Obiba Internal Transfers
-  public internalTransfer(params: {
-    senderId: string;
-    recipientId: string;
-    amountUsdc: number;
-    note?: string;
-  }) {
-    const micro = Math.round(params.amountUsdc * 1_000_000);
-    const balance = ledger.getUserBalance(params.senderId);
+  // 5. Merchant QR Code Generation & Payment (PRD §18)
+  public createMerchantRequest(merchantName: string, category: string, amountGhs: number): MerchantPaymentRequest {
+    const requestId = `mreq_${Math.random().toString(36).substring(2, 10)}`;
+    const now = Math.floor(Date.now() / 1000);
+    const request: MerchantPaymentRequest = {
+      requestId,
+      merchantName,
+      merchantCategory: category,
+      amountGhs,
+      qrPayload: `obiba:pay?req=${requestId}&amt=${amountGhs}&m=${encodeURIComponent(merchantName)}`,
+      status: 'PENDING',
+      expiresAt: now + 1800,
+    };
+    this.merchantRequests.set(requestId, request);
+    return request;
+  }
 
-    if (balance.availableUsdcMicro < micro) {
-      throw new Error('Insufficient available balance for transfer.');
+  public getMerchantRequest(requestId: string): MerchantPaymentRequest {
+    const req = this.merchantRequests.get(requestId);
+    if (!req) throw new Error(`Merchant request '${requestId}' not found or expired.`);
+    return req;
+  }
+
+  public payMerchant(params: { userId: string; requestId: string }) {
+    const req = this.getMerchantRequest(params.requestId);
+    if (req.status === 'PAID') throw new Error('Payment request has already been paid.');
+
+    const requiredUsdc = req.amountGhs / GHS_PER_USDC;
+    const requiredMicro = Math.round(requiredUsdc * 1_000_000);
+
+    const balance = ledger.getUserBalance(params.userId);
+    if (balance.availableUsdcMicro < requiredMicro) {
+      throw new Error(`Insufficient funds for merchant payment.`);
     }
 
     const journalId = ledger.recordJournal({
-      reference: `XFER-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      narration: `Internal transfer to ${params.recipientId}: ${params.note || 'P2P'}`,
+      reference: `PAY-MERCH-${req.requestId}`,
+      narration: `Merchant payment to ${req.merchantName} GH₵${req.amountGhs.toFixed(2)}`,
       entries: [
         {
-          accountId: userAvailableAccount(params.senderId),
+          accountId: userAvailableAccount(params.userId),
           direction: 'DEBIT',
-          amount: micro,
+          amount: requiredMicro,
           currency: 'USDC',
         },
         {
-          accountId: userAvailableAccount(params.recipientId),
+          accountId: ASSET_USDC_SETTLEMENT,
           direction: 'CREDIT',
-          amount: micro,
+          amount: requiredMicro,
           currency: 'USDC',
         },
       ],
     });
 
+    req.status = 'PAID';
+
     const tx: TransactionRecord = {
-      transactionId: `tx_xfer_${Math.random().toString(36).substring(2, 10)}`,
-      userId: params.senderId,
-      type: 'TRANSFER_OUT',
+      transactionId: `tx_merch_${Math.random().toString(36).substring(2, 10)}`,
+      userId: params.userId,
+      type: 'MERCHANT_PAY',
       status: 'COMPLETED',
-      grossAmountMicro: micro,
+      grossAmountMicro: requiredMicro,
       feeAmountMicro: 0,
-      netAmountMicro: micro,
+      netAmountMicro: requiredMicro,
       currency: 'USDC',
-      counterparty: params.recipientId,
-      description: `Sent $${params.amountUsdc.toFixed(2)} USDC to ${params.recipientId}`,
+      counterparty: req.merchantName,
+      description: `Payment to ${req.merchantName}`,
       journalId,
       createdAt: Math.floor(Date.now() / 1000),
     };
@@ -387,8 +422,9 @@ class GhanaRailsService {
 
     return {
       transactionId: tx.transactionId,
-      amountUsdc: params.amountUsdc,
-      recipientId: params.recipientId,
+      merchantName: req.merchantName,
+      amountGhs: req.amountGhs,
+      debitedUsdcDisplay: Math.round(requiredUsdc * 100) / 100,
       status: 'COMPLETED',
     };
   }
