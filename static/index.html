@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Obiba — Global Money. Local Rails.</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              blue: '#0A84FF',
+              darkBlue: '#0066CC',
+              bg: '#F7F8FA',
+              surface: '#FFFFFF',
+              text: '#0B0B0C',
+              secondary: '#6E6E73',
+              border: '#E5E5EA',
+              success: '#34C759',
+              warning: '#FF9500'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #ECEEF2;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0B0B0C;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-frame {
+      max-width: 420px;
+      min-height: 860px;
+      margin: 20px auto;
+      background-color: #F7F8FA;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.06);
+      border-radius: 40px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col lg:flex-row items-center lg:items-start justify-center min-h-screen p-2 lg:p-6 gap-6">
+
+  <!-- ==================== LEFT: MOBILE PHONE EXPERIENCE ==================== -->
+  <div class="mobile-frame w-full relative">
+    
+    <!-- iPhone-style Dynamic Island / Status Bar -->
+    <div class="w-full pt-3 px-7 flex justify-between items-center text-xs font-semibold text-gray-800 bg-[#F7F8FA] select-none">
+      <span id="current-time">09:41</span>
+      <div class="w-24 h-4 bg-black rounded-full"></div>
+      <div class="flex items-center gap-1.5">
+        <i data-lucide="signal" class="w-3.5 h-3.5"></i>
+        <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
+        <i data-lucide="battery-charging" class="w-4 h-4"></i>
+      </div>
+    </div>
+
+    <!-- App Header -->
+    <div class="px-5 py-3 flex justify-between items-center bg-[#F7F8FA] border-b border-[#E5E5EA]/60">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-full bg-[#0A84FF] text-white flex items-center justify-center font-bold text-lg shadow-sm">
+          O
+        </div>
+        <div>
+          <div class="text-xs text-brand-secondary font-medium">Welcome back,</div>
+          <div class="text-sm font-bold text-brand-text flex items-center gap-1">
+            <span>Kwame Mensah</span>
+            <span class="text-[10px] bg-blue-100 text-[#0A84FF] font-semibold px-1.5 py-0.5 rounded-full">Ghana</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="toggleInspector()" class="p-2 rounded-full bg-white border border-brand-border text-brand-blue hover:bg-blue-50 transition" title="Hackathon Inspector">
+          <i data-lucide="terminal" class="w-4 h-4"></i>
+        </button>
+        <button class="p-2 rounded-full bg-white border border-brand-border text-brand-secondary relative">
+          <i data-lucide="bell" class="w-4 h-4"></i>
+          <span class="w-2 h-2 rounded-full bg-red-500 absolute top-1.5 right-1.5"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Content Area -->
+    <div class="flex-1 overflow-y-auto hide-scrollbar px-5 py-4 pb-24 space-y-5">
+      
+      <!-- Primary Balance Card (PRD §7.1) -->
+      <div class="bg-gradient-to-br from-[#0A84FF] to-[#0066CC] text-white p-5 rounded-3xl shadow-lg relative overflow-hidden">
+        <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-blue-100 font-semibold flex items-center gap-1.5">
+              <span>Obiba USDC Balance</span>
+              <span class="bg-white/20 text-[10px] px-2 py-0.5 rounded-full text-white font-medium">One Balance</span>
+            </div>
+            <div class="text-3xl font-extrabold mt-1 tracking-tight flex items-baseline gap-1.5">
+              <span id="display-usdc-balance">$56.28</span>
+              <span class="text-sm font-medium text-blue-200">USDC</span>
+            </div>
+            <div class="text-xs text-blue-100 font-medium mt-1 flex items-center gap-1">
+              <span>Indicative:</span>
+              <span class="font-bold text-white" id="display-ghs-balance">≈ GH₵858.27</span>
+              <span class="text-[10px] text-blue-200">(1 USDC = 15.25 GHS)</span>
+            </div>
+          </div>
+          <button onclick="fetchWallet()" class="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition" title="Refresh balance">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <!-- Primary Actions: Add Money & Send Money -->
+        <div class="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-white/15">
+          <button onclick="openModal('modal-add-money')" class="w-full py-2.5 px-4 bg-white text-[#0A84FF] font-bold rounded-2xl flex items-center justify-center gap-2 text-sm shadow hover:bg-blue-50 transition active:scale-95">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>Add Money</span>
+          </button>
+          <button onclick="openModal('modal-send-money')" class="w-full py-2.5 px-4 bg-white/15 backdrop-blur text-white font-bold rounded-2xl flex items-center justify-center gap-2 text-sm border border-white/20 hover:bg-white/25 transition active:scale-95">
+            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+            <span>Send Money</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- NEAR Intents Banner -->
+      <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-[#0A84FF] text-white flex items-center justify-center text-xs font-bold">
+            Ⓝ
+          </div>
+          <div>
+            <div class="text-xs font-bold text-brand-text">NEAR Intents Active</div>
+            <div class="text-[11px] text-brand-secondary">Deposit BTC, ETH, SOL, USDT $\to$ USDC</div>
+          </div>
+        </div>
+        <button onclick="openModal('modal-deposit-crypto')" class="px-2.5 py-1 bg-white border border-[#0A84FF] text-[#0A84FF] text-xs font-bold rounded-xl hover:bg-blue-50 transition shadow-sm">
+          Deposit
+        </button>
+      </div>
+
+      <!-- Everyday Services Grid (PRD §7.1) -->
+      <div>
+        <div class="text-xs font-bold text-brand-secondary uppercase tracking-wider mb-2.5 px-1">
+          Everyday Services
+        </div>
+        <div class="grid grid-cols-4 gap-2.5">
+          <!-- Airtime -->
+          <button onclick="openAirtimeModal()" class="bg-white border border-brand-border rounded-2xl p-3 flex flex-col items-center justify-center hover:border-brand-blue hover:shadow-sm transition group active:scale-95">
+            <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition">
+              <i data-lucide="smartphone" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-brand-text">Airtime</span>
+          </button>
+
+          <!-- Data -->
+          <button onclick="openDataModal()" class="bg-white border border-brand-border rounded-2xl p-3 flex flex-col items-center justify-center hover:border-brand-blue hover:shadow-sm transition group active:scale-95">
+            <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition">
+              <i data-lucide="wifi" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-brand-text">Data</span>
+          </button>
+
+          <!-- Bills (ECG Electricity) -->
+          <button onclick="openModal('modal-bills')" class="bg-white border border-brand-border rounded-2xl p-3 flex flex-col items-center justify-center hover:border-brand-blue hover:shadow-sm transition group active:scale-95">
+            <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition">
+              <i data-lucide="zap" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-brand-text">Bills</span>
+          </button>
+
+          <!-- Withdraw -->
+          <button onclick="openModal('modal-payout-momo')" class="bg-white border border-brand-border rounded-2xl p-3 flex flex-col items-center justify-center hover:border-brand-blue hover:shadow-sm transition group active:scale-95">
+            <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition">
+              <i data-lucide="credit-card" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-brand-text">Withdraw</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent Activity Section -->
+      <div>
+        <div class="flex justify-between items-center mb-2.5 px-1">
+          <div class="text-xs font-bold text-brand-secondary uppercase tracking-wider">Recent Activity</div>
+          <button onclick="fetchTransactions()" class="text-xs text-brand-blue font-semibold hover:underline">Refresh</button>
+        </div>
+        <div id="transactions-container" class="space-y-2">
+          <!-- Rendered dynamically -->
+          <div class="bg-white p-4 rounded-2xl border border-brand-border text-center text-xs text-brand-secondary">
+            Loading recent activity...
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- App Bottom Navigation (PRD §7.1) -->
+    <div class="absolute bottom-0 left-0 right-0 h-20 bg-white/95 backdrop-blur border-t border-brand-border px-4 flex justify-around items-center z-10">
+      <button class="flex flex-col items-center text-brand-blue">
+        <i data-lucide="home" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-1">Home</span>
+      </button>
+      <button onclick="openModal('modal-send-money')" class="flex flex-col items-center text-brand-secondary hover:text-brand-blue transition">
+        <i data-lucide="send" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Pay</span>
+      </button>
+      <button onclick="openModal('modal-scan')" class="w-12 h-12 -mt-5 bg-[#0A84FF] rounded-full text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition">
+        <i data-lucide="qr-code" class="w-6 h-6"></i>
+      </button>
+      <button onclick="fetchTransactions()" class="flex flex-col items-center text-brand-secondary hover:text-brand-blue transition">
+        <i data-lucide="clock" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Activity</span>
+      </button>
+      <button onclick="toggleInspector()" class="flex flex-col items-center text-brand-secondary hover:text-brand-blue transition">
+        <i data-lucide="sliders" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Inspect</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ==================== RIGHT: HACKATHON INSPECTOR & AUDIT DRAWER ==================== -->
+  <div id="inspector-panel" class="w-full lg:w-[480px] bg-white rounded-3xl p-5 border border-brand-border shadow-xl flex flex-col h-[860px] my-auto">
+    <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+        <div class="text-sm font-bold text-brand-text">Hackathon Ledger Inspector</div>
+      </div>
+      <span class="text-[10px] bg-blue-100 text-brand-blue font-bold px-2 py-0.5 rounded-full">
+        Double-Entry & NEAR Intents
+      </span>
+    </div>
+
+    <!-- Inspector Tabs -->
+    <div class="grid grid-cols-3 gap-1 bg-brand-bg p-1 rounded-xl mt-3 text-xs font-semibold">
+      <button onclick="switchTab('tab-journals')" id="btn-tab-journals" class="py-1.5 text-center rounded-lg bg-white shadow-sm text-brand-blue">
+        Ledger Journals
+      </button>
+      <button onclick="switchTab('tab-intents')" id="btn-tab-intents" class="py-1.5 text-center rounded-lg text-brand-secondary hover:text-brand-text">
+        NEAR 1Click
+      </button>
+      <button onclick="switchTab('tab-treasury')" id="btn-tab-treasury" class="py-1.5 text-center rounded-lg text-brand-secondary hover:text-brand-text">
+        Treasury & FX
+      </button>
+    </div>
+
+    <!-- Content: Tab Journals -->
+    <div id="tab-journals" class="flex-1 overflow-y-auto hide-scrollbar mt-3 space-y-2.5">
+      <div class="text-[11px] text-brand-secondary bg-blue-50 p-2.5 rounded-xl border border-blue-200">
+        ⚖️ <strong>Fintech Ledger Invariant:</strong> Every transaction is backed by balanced debits and credits ($\sum\text{Debits} = \sum\text{Credits}$). No floating-point math; all values in integer minor units.
+      </div>
+      <div id="journals-list" class="space-y-2 text-xs">
+        Loading ledger journals...
+      </div>
+    </div>
+
+    <!-- Content: Tab Intents -->
+    <div id="tab-intents" class="flex-1 overflow-y-auto hide-scrollbar mt-3 space-y-3 hidden">
+      <div class="text-[11px] text-brand-secondary bg-purple-50 p-2.5 rounded-xl border border-purple-200">
+        Ⓝ <strong>NEAR Intents Solver Network:</strong> Cross-chain RFQ and atomic settlement. Generates one-time deposit addresses on source chains and delivers USDC to Obiba's settlement vault.
+      </div>
+      <div class="border border-brand-border rounded-xl p-3 bg-brand-bg space-y-2 text-xs">
+        <div class="font-bold text-brand-text flex justify-between">
+          <span>Active 1Click Endpoint</span>
+          <span class="text-emerald-600 font-mono">1click.chaindefuser.com</span>
+        </div>
+        <div class="text-[11px] text-brand-secondary">
+          Supported Assets: <strong>BTC, ETH, SOL, USDT, USDC, NEAR</strong><br>
+          Destination Asset: <strong>nep141:arb-0xaf88...omft.near (USDC)</strong><br>
+          Execution: <strong>Atomic RFQ Solver Competition</strong>
+        </div>
+      </div>
+      <div id="live-intent-card" class="hidden border border-blue-300 bg-blue-50/50 rounded-xl p-3 text-xs space-y-2">
+        <!-- Filled on crypto intent creation -->
+      </div>
+    </div>
+
+    <!-- Content: Tab Treasury -->
+    <div id="tab-treasury" class="flex-1 overflow-y-auto hide-scrollbar mt-3 space-y-3 hidden">
+      <div class="border border-brand-border rounded-xl p-3 bg-brand-bg space-y-2 text-xs">
+        <div class="font-bold text-brand-text">Treasury Settlement Positions</div>
+        <div class="flex justify-between items-center py-1 border-b border-brand-border">
+          <span class="text-brand-secondary">1000 - USDC Settlement Custody:</span>
+          <span class="font-bold text-brand-text" id="inspector-custody-usdc">$0.00</span>
+        </div>
+        <div class="flex justify-between items-center py-1 border-b border-brand-border">
+          <span class="text-brand-secondary">4000 - Conversion Fee Revenue:</span>
+          <span class="font-bold text-emerald-600" id="inspector-fee-revenue">$0.00</span>
+        </div>
+        <div class="flex justify-between items-center py-1">
+          <span class="text-brand-secondary">Fixed FX Baseline:</span>
+          <span class="font-bold text-brand-text">1 USDC = 15.25 GHS</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal 1: Add Money Selection (PRD §8) -->
+  <div id="modal-add-money" class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 space-y-4 animate-in slide-in-from-bottom">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-brand-text">How would you like to add money?</h3>
+        <button onclick="closeModal('modal-add-money')" class="p-1 rounded-full text-brand-secondary hover:bg-gray-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5">
+        <!-- Deposit Crypto (NEAR Intents) -->
+        <button onclick="closeModal('modal-add-money'); openModal('modal-deposit-crypto')" class="w-full p-3.5 rounded-2xl border border-brand-border hover:border-brand-blue flex items-center justify-between transition group">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-blue-50 text-brand-blue flex items-center justify-center group-hover:scale-105 transition">
+              <i data-lucide="coins" class="w-5 h-5"></i>
+            </div>
+            <div class="text-left">
+              <div class="text-sm font-bold text-brand-text flex items-center gap-1.5">
+                <span>Deposit Crypto</span>
+                <span class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">NEAR Intents</span>
+              </div>
+              <div class="text-xs text-brand-secondary">BTC, ETH, SOL, USDT to USDC</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-brand-secondary"></i>
+        </button>
+
+        <!-- Mobile Money -->
+        <button onclick="closeModal('modal-add-money'); openModal('modal-funding-momo')" class="w-full p-3.5 rounded-2xl border border-brand-border hover:border-brand-blue flex items-center justify-between transition group">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition">
+              <i data-lucide="smartphone" class="w-5 h-5"></i>
+            </div>
+            <div class="text-left">
+              <div class="text-sm font-bold text-brand-text">Mobile Money (GHS)</div>
+              <div class="text-xs text-brand-secondary">MTN MoMo, Telecel Cash, AT Money</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-brand-secondary"></i>
+        </button>
+
+        <!-- Bank Transfer -->
+        <button onclick="alert('Bank transfer details: Send to Obiba GCB dedicated collection account.')" class="w-full p-3.5 rounded-2xl border border-brand-border hover:border-brand-blue flex items-center justify-between transition group">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition">
+              <i data-lucide="building-2" class="w-5 h-5"></i>
+            </div>
+            <div class="text-left">
+              <div class="text-sm font-bold text-brand-text">Bank Transfer (Ghana)</div>
+              <div class="text-xs text-brand-secondary">GCB, Ecobank, Stanbic</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-brand-secondary"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: NEAR Intents Deposit Crypto (PRD §9) -->
+  <div id="modal-deposit-crypto" class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-base text-brand-text">Deposit Crypto</h3>
+          <p class="text-xs text-brand-secondary">NEAR Intents converts assets to your USDC balance.</p>
+        </div>
+        <button onclick="closeModal('modal-deposit-crypto')" class="p-1 rounded-full text-brand-secondary hover:bg-gray-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Step 1: Input -->
+      <div id="crypto-step-input" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-brand-secondary mb-1">Select Asset</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button onclick="selectCryptoAsset('SOL')" id="btn-asset-SOL" class="p-2 border-2 border-brand-blue bg-blue-50 rounded-xl text-center">
+              <div class="text-base">🟣</div>
+              <div class="text-xs font-bold text-brand-text">SOL</div>
+            </button>
+            <button onclick="selectCryptoAsset('ETH')" id="btn-asset-ETH" class="p-2 border border-brand-border rounded-xl text-center hover:border-brand-blue">
+              <div class="text-base">🔷</div>
+              <div class="text-xs font-bold text-brand-text">ETH</div>
+            </button>
+            <button onclick="selectCryptoAsset('BTC')" id="btn-asset-BTC" class="p-2 border border-brand-border rounded-xl text-center hover:border-brand-blue">
+              <div class="text-base">₿</div>
+              <div class="text-xs font-bold text-brand-text">BTC</div>
+            </button>
+            <button onclick="selectCryptoAsset('USDT')" id="btn-asset-USDT" class="p-2 border border-brand-border rounded-xl text-center hover:border-brand-blue">
+              <div class="text-base">🟢</div>
+              <div class="text-xs font-bold text-brand-text">USDT</div>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-brand-secondary mb-1">Deposit Amount</label>
+          <div class="relative">
+            <input type="number" id="crypto-deposit-amount" value="1.0" step="0.1" oninput="updateCryptoQuote()" class="w-full p-3 rounded-xl border border-brand-border text-sm font-bold text-brand-text focus:outline-none focus:border-brand-blue">
+            <span id="crypto-asset-label" class="absolute right-3 top-3 text-xs font-bold text-brand-secondary">SOL</span>
+          </div>
+        </div>
+
+        <!-- Quote Preview -->
+        <div class="p-3 bg-brand-bg rounded-xl border border-brand-border space-y-1 text-xs">
+          <div class="flex justify-between">
+            <span class="text-brand-secondary">Est. USDC Received:</span>
+            <span class="font-bold text-brand-text" id="crypto-quote-usdc">$164.18 USDC</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-brand-secondary">Solver Routing:</span>
+            <span class="text-[11px] text-brand-blue font-semibold">1Click Solver Network</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-brand-secondary">Protocol Fee:</span>
+            <span class="text-brand-secondary">0.5%</span>
+          </div>
+        </div>
+
+        <button onclick="submitCryptoIntent()" class="w-full py-3 bg-[#0A84FF] text-white font-bold rounded-xl text-sm shadow hover:bg-brand-darkBlue transition">
+          Continue to Deposit
+        </button>
+      </div>
+
+      <!-- Step 2: Deposit Address & Solver Progress -->
+      <div id="crypto-step-progress" class="space-y-4 hidden">
+        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center space-y-2">
+          <div class="text-xs text-brand-secondary font-medium">Send <strong id="step2-amount" class="text-brand-text">1.0 SOL</strong> to this temporary deposit address:</div>
+          <div class="p-2 bg-white rounded-xl border border-blue-200 font-mono text-[11px] text-brand-text break-all select-all font-semibold" id="step2-address">
+            So1...
+          </div>
+          <div class="text-[10px] text-brand-secondary">Generated via NEAR Intents 1Click. Expires in 15 mins.</div>
+        </div>
+
+        <!-- Lifecycle Visualizer -->
+        <div class="space-y-2 text-xs">
+          <div class="font-bold text-brand-text">Solver Settlement Status:</div>
+          <div class="p-3 rounded-xl border border-brand-border bg-white space-y-2">
+            <div id="state-awaiting" class="flex items-center gap-2 font-bold text-brand-blue">
+              <div class="w-2.5 h-2.5 rounded-full bg-brand-blue animate-ping"></div>
+              <span>1. Awaiting Deposit on Source Chain</span>
+            </div>
+            <div id="state-detected" class="flex items-center gap-2 text-gray-400">
+              <div class="w-2.5 h-2.5 rounded-full bg-gray-300"></div>
+              <span>2. Deposit Detected</span>
+            </div>
+            <div id="state-converting" class="flex items-center gap-2 text-gray-400">
+              <div class="w-2.5 h-2.5 rounded-full bg-gray-300"></div>
+              <span>3. Solvers Competing & Converting</span>
+            </div>
+            <div id="state-settled" class="flex items-center gap-2 text-gray-400">
+              <div class="w-2.5 h-2.5 rounded-full bg-gray-300"></div>
+              <span>4. Atomic Settlement Verified & Credited</span>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="advanceMockDeposit()" id="btn-advance-deposit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow transition">
+          Simulate User Transfer & Solver Settlement ⚡
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: MoMo Cash In (PRD §10) -->
+  <div id="modal-funding-momo" class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-brand-text">Add Money via Mobile Money</h3>
+        <button onclick="closeModal('modal-funding-momo')" class="p-1 rounded-full text-brand-secondary hover:bg-gray-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Select Network</label>
+          <select id="momo-in-provider" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-semibold">
+            <option value="MTN">MTN Mobile Money</option>
+            <option value="TELECEL">Telecel Cash</option>
+            <option value="AT">AT Money</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Your Mobile Number</label>
+          <input type="text" id="momo-in-phone" value="0241234567" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-bold">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Amount (GHS)</label>
+          <input type="number" id="momo-in-amount" value="500" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-bold">
+          <p class="text-[11px] text-brand-secondary mt-1">Converts to ≈ <strong id="momo-in-calc">$32.79 USDC</strong></p>
+        </div>
+
+        <button onclick="submitMomoFunding()" class="w-full py-3 bg-[#0A84FF] text-white font-bold rounded-xl text-sm shadow hover:bg-brand-darkBlue transition">
+          Confirm & Pay Prompt
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Send Money (PRD §13 & §14) -->
+  <div id="modal-send-money" class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-brand-text">Send Money</h3>
+        <button onclick="closeModal('modal-send-money')" class="p-1 rounded-full text-brand-secondary hover:bg-gray-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 bg-brand-bg p-1 rounded-xl text-xs font-semibold">
+        <button onclick="switchSendTab('send-tab-momo')" id="btn-send-momo" class="py-1.5 rounded-lg bg-white shadow-sm text-brand-blue">
+          To Mobile Money
+        </button>
+        <button onclick="switchSendTab('send-tab-obiba')" id="btn-send-obiba" class="py-1.5 rounded-lg text-brand-secondary">
+          To Obiba User
+        </button>
+      </div>
+
+      <!-- Send To MoMo -->
+      <div id="send-tab-momo" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Provider</label>
+          <select id="payout-momo-provider" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-semibold">
+            <option value="MTN">MTN Mobile Money</option>
+            <option value="TELECEL">Telecel Cash</option>
+            <option value="AT">AT Money</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Recipient Phone Number</label>
+          <input type="text" id="payout-momo-phone" placeholder="0559876543" value="0559876543" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-bold">
+        </div>
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Amount Recipient Receives (GHS)</label>
+          <input type="number" id="payout-momo-amount" value="100" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-bold">
+          <p class="text-[11px] text-brand-secondary mt-1">Debits: ≈ <strong id="payout-momo-calc">$6.66 USDC</strong></p>
+        </div>
+        <button onclick="submitMomoPayout()" class="w-full py-3 bg-[#0A84FF] text-white font-bold rounded-xl text-sm shadow hover:bg-brand-darkBlue transition">
+          Authorize & Send GHS
+        </button>
+      </div>
+
+      <!-- Send To Obiba User (P2P) -->
+      <div id="send-tab-obiba" class="space-y-3 text-xs hidden">
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Recipient Obiba Tag or ID</label>
+          <input type="text" id="p2p-recipient" value="user_abena" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-bold">
+        </div>
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Amount (USDC)</label>
+          <input type="number" id="p2p-amount" value="15" class="w-full p-2.5 rounded-xl border border-brand-border text-sm font-bold">
+        </div>
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Note (Optional)</label>
+          <input type="text" id="p2p-note" placeholder="E.g. Lunch split" value="For groceries" class="w-full p-2.5 rounded-xl border border-brand-border text-sm">
+        </div>
+        <button onclick="submitP2PTransfer()" class="w-full py-3 bg-[#0A84FF] text-white font-bold rounded-xl text-sm shadow hover:bg-brand-darkBlue transition">
+          Send USDC Instantly
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Pay Bills (ECG Electricity) (PRD §16) -->
+  <div id="modal-bills" class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-base text-brand-text">Pay Bills</h3>
+          <p class="text-xs text-brand-secondary">Prepaid Electricity & Utility Bills</p>
+        </div>
+        <button onclick="closeModal('modal-bills')" class="p-1 rounded-full text-brand-secondary hover:bg-gray-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Biller</label>
+          <div class="p-2.5 rounded-xl border border-brand-blue bg-blue-50 font-bold text-sm text-brand-blue flex items-center gap-2">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span>ECG Prepaid Electricity</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Meter Number</label>
+          <div class="flex gap-2">
+            <input type="text" id="ecg-meter-input" value="482019-2041" class="flex-1 p-2.5 rounded-xl border border-brand-border font-mono font-bold text-sm">
+            <button onclick="validateMeter()" class="px-3 bg-gray-100 border border-brand-border font-bold rounded-xl hover:bg-gray-200">
+              Verify
+            </button>
+          </div>
+          <div id="meter-validation-result" class="text-[11px] text-emerald-600 font-semibold mt-1">
+            ✓ Kwame Mensah - East Legon (RLV)
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-brand-secondary mb-1">Recharge Amount (GHS)</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setBillAmount(50)" class="p-2 border border-brand-border rounded-xl font-bold hover:border-brand-blue">GH₵50</button>
+            <button onclick="setBillAmount(100)" class="p-2 border-2 border-brand-blue bg-blue-50 font-bold text-brand-blue rounded-xl">GH₵100</button>
+            <button onclick="setBillAmount(200)" class="p-2 border border-brand-border rounded-xl font-bold hover:border-brand-blue">GH₵200</button>
+          </div>
+          <input type="hidden" id="ecg-amount" value="100">
+        </div>
+
+        <button onclick="submitECGPayment()" class="w-full py-3 bg-[#0A84FF] text-white font-bold rounded-xl text-sm shadow hover:bg-brand-darkBlue transition">
+          Pay with USDC & Generate Token
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Receipt & Token Popup -->
+  <div id="modal-receipt" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4 text-center">
+      <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+        <i data-lucide="check" class="w-8 h-8"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-lg text-brand-text" id="receipt-title">Transaction Successful</h3>
+        <p class="text-xs text-brand-secondary" id="receipt-subtitle">Your payment has been fulfilled.</p>
+      </div>
+
+      <!-- Token display if ECG bill -->
+      <div id="receipt-token-container" class="hidden p-3 bg-brand-bg rounded-2xl border border-brand-border space-y-1">
+        <div class="text-[11px] font-bold text-brand-secondary uppercase tracking-wider">ECG Prepaid Token</div>
+        <div class="text-lg font-mono font-extrabold text-[#0A84FF] tracking-wider select-all" id="receipt-token-value">
+          ----
+        </div>
+        <div class="text-[10px] text-brand-secondary">Enter this 20-digit code into your meter keypad.</div>
+      </div>
+
+      <div class="p-3 bg-brand-bg rounded-xl border border-brand-border text-xs space-y-1 text-left" id="receipt-details">
+        <!-- Rendered details -->
+      </div>
+
+      <button onclick="closeModal('modal-receipt'); fetchWallet(); fetchTransactions();" class="w-full py-2.5 bg-brand-text text-white font-bold rounded-xl text-sm">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT APP LOGIC -->
+  <script>
+    let currentSelectedAsset = "SOL";
+    let activeDepositIntentId = null;
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      fetchWallet();
+      fetchTransactions();
+      fetchInspectorLedger();
+      setInterval(updateClock, 1000);
+      updateClock();
+    });
+
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('current-time').innerText = `${h}:${m}`;
+    }
+
+    // Wallet & Transactions
+    async function fetchWallet() {
+      try {
+        const res = await fetch('/api/v1/wallet');
+        const data = await res.json();
+        document.getElementById('display-usdc-balance').innerText = `$${data.available_usdc.toFixed(2)}`;
+        document.getElementById('display-ghs-balance').innerText = `≈ GH₵${data.indicative_ghs_equivalent.toFixed(2)}`;
+        fetchInspectorLedger();
+      } catch (e) {
+        console.error("Failed to fetch wallet:", e);
+      }
+    }
+
+    async function fetchTransactions() {
+      try {
+        const res = await fetch('/api/v1/wallet/transactions');
+        const data = await res.json();
+        const container = document.getElementById('transactions-container');
+        if (!data.transactions || data.transactions.length === 0) {
+          container.innerHTML = `<div class="bg-white p-4 rounded-2xl border border-brand-border text-center text-xs text-brand-secondary">No transactions yet. Deposit crypto or add money to start!</div>`;
+          return;
+        }
+
+        container.innerHTML = data.transactions.slice(0, 10).map(tx => {
+          const isCredit = tx.transaction_type.includes('DEPOSIT') || tx.transaction_type.includes('TRANSFER_IN');
+          const sign = isCredit ? '+' : '-';
+          const color = isCredit ? 'text-emerald-600' : 'text-brand-text';
+          const icon = isCredit ? 'arrow-down-left' : 'arrow-up-right';
+          const amt = (tx.net_amount / 1000000).toFixed(2);
+          const dateStr = new Date(tx.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          return `
+            <div class="bg-white p-3 rounded-2xl border border-brand-border flex justify-between items-center hover:border-brand-blue/50 transition">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full ${isCredit ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-brand-blue'} flex items-center justify-center">
+                  <i data-lucide="${icon}" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-brand-text truncate max-w-[170px]">${tx.description}</div>
+                  <div class="text-[10px] text-brand-secondary">${dateStr} · ${tx.counterparty || 'Obiba'}</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs font-bold ${color}">${sign}$${amt} USDC</div>
+                <div class="text-[9px] text-emerald-600 font-semibold">Settled</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        lucide.createIcons();
+      } catch (e) {
+        console.error("Failed to fetch transactions:", e);
+      }
+    }
+
+    // Inspector Ledger Fetch
+    async function fetchInspectorLedger() {
+      try {
+        const res = await fetch('/api/v1/admin/ledger');
+        const data = await res.json();
+        document.getElementById('inspector-custody-usdc').innerText = `$${data.custody_usdc_pool.toFixed(2)} USDC`;
+        document.getElementById('inspector-fee-revenue').innerText = `$${data.fee_revenue_usdc.toFixed(2)} USDC`;
+
+        const list = document.getElementById('journals-list');
+        if (!data.journals || data.journals.length === 0) {
+          list.innerHTML = `<div class="p-3 bg-brand-bg rounded-xl border border-brand-border text-center text-brand-secondary">No journals posted yet.</div>`;
+          return;
+        }
+
+        list.innerHTML = data.journals.map(j => `
+          <div class="p-2.5 bg-brand-bg rounded-xl border border-brand-border space-y-1">
+            <div class="flex justify-between font-bold text-brand-text">
+              <span class="truncate max-w-[200px]">${j.reference}</span>
+              <span class="text-[10px] text-brand-secondary font-mono">${j.journal_id}</span>
+            </div>
+            <div class="text-[10px] text-brand-secondary truncate">${j.narration}</div>
+            <div class="pt-1 border-t border-brand-border space-y-0.5">
+              ${j.entries.map(e => `
+                <div class="flex justify-between font-mono text-[10px] ${e.direction === 'DEBIT' ? 'text-blue-700' : 'text-emerald-700'}">
+                  <span class="truncate max-w-[240px]">${e.direction} ${e.account_id}</span>
+                  <span>${(e.amount / 1000000).toFixed(2)} ${e.currency}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error("Failed to fetch inspector:", e);
+      }
+    }
+
+    // NEAR Intents Crypto Deposit Flow
+    function selectCryptoAsset(sym) {
+      currentSelectedAsset = sym;
+      ['SOL', 'ETH', 'BTC', 'USDT'].forEach(s => {
+        const btn = document.getElementById(`btn-asset-${s}`);
+        if (s === sym) {
+          btn.className = "p-2 border-2 border-brand-blue bg-blue-50 rounded-xl text-center";
+        } else {
+          btn.className = "p-2 border border-brand-border rounded-xl text-center hover:border-brand-blue";
+        }
+      });
+      document.getElementById('crypto-asset-label').innerText = sym;
+      updateCryptoQuote();
+    }
+
+    async function updateCryptoQuote() {
+      const amt = parseFloat(document.getElementById('crypto-deposit-amount').value) || 0;
+      try {
+        const res = await fetch('/api/v1/crypto/deposits/quotes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ asset: currentSelectedAsset, amount: amt })
+        });
+        const quote = await res.json();
+        document.getElementById('crypto-quote-usdc').innerText = `$${quote.net_usdc_display} USDC`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function submitCryptoIntent() {
+      const amt = parseFloat(document.getElementById('crypto-deposit-amount').value) || 1.0;
+      try {
+        const res = await fetch('/api/v1/crypto/deposits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asset: currentSelectedAsset,
+            amount: amt,
+            network: currentSelectedAsset === 'SOL' ? 'Solana Mainnet' : (currentSelectedAsset === 'BTC' ? 'Bitcoin Network' : 'Arbitrum One')
+          })
+        });
+        const intent = await res.json();
+        activeDepositIntentId = intent.intent_id;
+
+        document.getElementById('crypto-step-input').classList.add('hidden');
+        document.getElementById('crypto-step-progress').classList.remove('hidden');
+        document.getElementById('step2-amount').innerText = `${amt} ${currentSelectedAsset}`;
+        document.getElementById('step2-address').innerText = intent.deposit_address;
+
+        // Populate intent card in inspector
+        const card = document.getElementById('live-intent-card');
+        card.classList.remove('hidden');
+        card.innerHTML = `
+          <div class="font-bold text-brand-text flex justify-between">
+            <span>NEAR 1Click Intent Created</span>
+            <span class="text-blue-600 font-mono text-[10px]">${intent.intent_id}</span>
+          </div>
+          <div>Deposit Address: <span class="font-mono text-[10px]">${intent.deposit_address}</span></div>
+          <div>Expected Settlement: <strong>$${intent.estimated_usdc_display} USDC</strong></div>
+        `;
+      } catch (e) {
+        alert("Error creating intent: " + e.message);
+      }
+    }
+
+    async function advanceMockDeposit() {
+      if (!activeDepositIntentId) return;
+      try {
+        const res = await fetch('/api/v1/crypto/deposits/step', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intent_id: activeDepositIntentId })
+        });
+        const intent = await res.json();
+
+        // Update visual states
+        if (intent.status === 'DEPOSIT_DETECTED') {
+          document.getElementById('state-detected').className = "flex items-center gap-2 font-bold text-brand-blue";
+        } else if (intent.status === 'CONVERTING') {
+          document.getElementById('state-converting').className = "flex items-center gap-2 font-bold text-brand-blue";
+        } else if (intent.status === 'CREDITED') {
+          document.getElementById('state-settled').className = "flex items-center gap-2 font-bold text-emerald-600";
+          document.getElementById('btn-advance-deposit').innerText = "✓ Credited to USDC Ledger!";
+          document.getElementById('btn-advance-deposit').className = "w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-sm";
+          
+          setTimeout(() => {
+            closeModal('modal-deposit-crypto');
+            fetchWallet();
+            fetchTransactions();
+            // Reset modal steps
+            document.getElementById('crypto-step-input').classList.remove('hidden');
+            document.getElementById('crypto-step-progress').classList.add('hidden');
+            activeDepositIntentId = null;
+          }, 1500);
+        }
+        fetchInspectorLedger();
+      } catch (e) {
+        alert("Error stepping simulation: " + e.message);
+      }
+    }
+
+    // MoMo Cash In
+    async function submitMomoFunding() {
+      const provider = document.getElementById('momo-in-provider').value;
+      const phone = document.getElementById('momo-in-phone').value;
+      const amount_ghs = parseFloat(document.getElementById('momo-in-amount').value);
+
+      try {
+        const res = await fetch('/api/v1/funding/momo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, phone, amount_ghs })
+        });
+        const data = await res.json();
+        closeModal('modal-funding-momo');
+        showReceipt("Mobile Money Cash-In", `Credited $${data.credited_usdc_display} USDC from GH₵${amount_ghs} ${provider}.`);
+      } catch (e) {
+        alert("MoMo Funding error: " + e.message);
+      }
+    }
+
+    // MoMo Payout
+    async function submitMomoPayout() {
+      const provider = document.getElementById('payout-momo-provider').value;
+      const recipient_phone = document.getElementById('payout-momo-phone').value;
+      const amount_ghs = parseFloat(document.getElementById('payout-momo-amount').value);
+
+      try {
+        const res = await fetch('/api/v1/payouts/momo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, phone: recipient_phone, amount_ghs })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        closeModal('modal-send-money');
+        showReceipt(
+          "Mobile Money Payout Sent",
+          `GH₵${amount_ghs.toFixed(2)} sent to ${recipient_phone} (${provider}).`,
+          `Debited $${data.debited_usdc_display} USDC from available balance.`
+        );
+      } catch (e) {
+        alert("Payout error: " + e.message);
+      }
+    }
+
+    // P2P Obiba Transfer
+    async function submitP2PTransfer() {
+      const recipient_id = document.getElementById('p2p-recipient').value;
+      const amount_usdc = parseFloat(document.getElementById('p2p-amount').value);
+      const note = document.getElementById('p2p-note').value;
+
+      try {
+        const res = await fetch('/api/v1/transfers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipient_id, amount_usdc, note })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        closeModal('modal-send-money');
+        showReceipt("Obiba Transfer Completed", `$${amount_usdc.toFixed(2)} USDC sent to ${recipient_id}.`);
+      } catch (e) {
+        alert("Transfer error: " + e.message);
+      }
+    }
+
+    // ECG Bill Payment
+    function setBillAmount(amt) {
+      document.getElementById('ecg-amount').value = amt;
+    }
+
+    async function validateMeter() {
+      const meter = document.getElementById('ecg-meter-input').value;
+      const res = await fetch('/api/v1/bills/ecg/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meter_number: meter })
+      });
+      const data = await res.json();
+      document.getElementById('meter-validation-result').innerText = `✓ ${data.customer_name} (${data.tariff})`;
+    }
+
+    async function submitECGPayment() {
+      const meter_number = document.getElementById('ecg-meter-input').value;
+      const amount_ghs = parseFloat(document.getElementById('ecg-amount').value) || 100;
+
+      try {
+        const res = await fetch('/api/v1/bills/ecg/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ meter_number, amount_ghs })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        closeModal('modal-bills');
+        showReceipt(
+          "ECG Electricity Recharge",
+          `Purchased GH₵${amount_ghs} (${data.kwh_units} kWh) for ${data.customer_name}.`,
+          `Debited $${data.debited_usdc_display} USDC`,
+          data.token
+        );
+      } catch (e) {
+        alert("Bill error: " + e.message);
+      }
+    }
+
+    // Quick Airtime & Data Shortcuts
+    async function openAirtimeModal() {
+      const phone = prompt("Enter phone number to top up airtime (e.g. 0241234567):", "0241234567");
+      if (!phone) return;
+      const amount_ghs = parseFloat(prompt("Enter airtime amount in GHS (e.g. 20):", "20"));
+      if (!amount_ghs) return;
+
+      try {
+        const res = await fetch('/api/v1/bills/recharge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: "AIRTIME", provider: "MTN", phone, amount_ghs })
+        });
+        const data = await res.json();
+        showReceipt("Airtime Recharged", `GH₵${amount_ghs} airtime topped up to ${phone}.`);
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function openDataModal() {
+      const phone = prompt("Enter phone number for 1.2GB Daily Bundle (GH₵10):", "0241234567");
+      if (!phone) return;
+
+      try {
+        const res = await fetch('/api/v1/bills/recharge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: "DATA", provider: "MTN", phone, amount_ghs: 10.0, bundle_id: "mtn_1gb" })
+        });
+        const data = await res.json();
+        showReceipt("Data Bundle Activated", `1.2GB Super Bundle activated for ${phone}.`);
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // Helpers
+    function showReceipt(title, subtitle, detailLine = "", token = "") {
+      document.getElementById('receipt-title').innerText = title;
+      document.getElementById('receipt-subtitle').innerText = subtitle;
+      document.getElementById('receipt-details').innerHTML = `
+        <div class="text-brand-text font-medium">${subtitle}</div>
+        ${detailLine ? `<div class="text-brand-secondary">${detailLine}</div>` : ''}
+        <div class="text-[10px] text-brand-secondary font-mono pt-1 border-t border-brand-border">Verified on Obiba Double-Entry Ledger</div>
+      `;
+
+      const tokenBox = document.getElementById('receipt-token-container');
+      if (token) {
+        tokenBox.classList.remove('hidden');
+        document.getElementById('receipt-token-value').innerText = token;
+      } else {
+        tokenBox.classList.add('hidden');
+      }
+
+      openModal('modal-receipt');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function switchSendTab(tabId) {
+      document.getElementById('send-tab-momo').classList.add('hidden');
+      document.getElementById('send-tab-obiba').classList.add('hidden');
+      document.getElementById('btn-send-momo').className = "py-1.5 rounded-lg text-brand-secondary";
+      document.getElementById('btn-send-obiba').className = "py-1.5 rounded-lg text-brand-secondary";
+
+      document.getElementById(tabId).classList.remove('hidden');
+      if (tabId === 'send-tab-momo') {
+        document.getElementById('btn-send-momo').className = "py-1.5 rounded-lg bg-white shadow-sm text-brand-blue";
+      } else {
+        document.getElementById('btn-send-obiba').className = "py-1.5 rounded-lg bg-white shadow-sm text-brand-blue";
+      }
+    }
+
+    function switchTab(tabId) {
+      ['tab-journals', 'tab-intents', 'tab-treasury'].forEach(t => {
+        document.getElementById(t).classList.add('hidden');
+        document.getElementById(`btn-${t}`).className = "py-1.5 text-center rounded-lg text-brand-secondary hover:text-brand-text";
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+      document.getElementById(`btn-${tabId}`).className = "py-1.5 text-center rounded-lg bg-white shadow-sm text-brand-blue";
+    }
+
+    function toggleInspector() {
+      const panel = document.getElementById('inspector-panel');
+      panel.classList.toggle('hidden');
+    }
+  </script>
+</body>
+</html>
