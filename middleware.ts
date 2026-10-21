@@ -1,3 +1,8 @@
+// Ensure WebSocket exists in Node.js 20 environment to prevent Supabase Realtime crash
+if (typeof globalThis.WebSocket === 'undefined') {
+  globalThis.WebSocket = class WebSocket {} as any;
+}
+
 import { type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 

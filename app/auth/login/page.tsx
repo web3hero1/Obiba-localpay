@@ -79,8 +79,10 @@ function LoginContent() {
         return;
       }
 
-      // Success -> Redirect to safe target with full window navigation to commit cookies
-      window.location.href = redirectTarget;
+      // Success -> Give cookie jar 150ms to flush, then execute full page navigation
+      setTimeout(() => {
+        window.location.href = redirectTarget;
+      }, 150);
     } catch (err: any) {
       console.error('Login error:', err);
       const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL;

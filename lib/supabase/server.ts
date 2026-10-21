@@ -1,3 +1,7 @@
+if (typeof globalThis.WebSocket === 'undefined') {
+  globalThis.WebSocket = class WebSocket {} as any;
+}
+
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
