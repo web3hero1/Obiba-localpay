@@ -52,20 +52,36 @@ export default function DashboardPage() {
     setIsLoading(true);
     try {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      let authUser: any = null;
 
-      if (user) {
+      // 1. Try getUser() directly from Supabase
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          authUser = data.user;
+        }
+      } catch {
+        // Fall through to session lookup
+      }
+
+      // 2. If getUser() is null or slow, fall back to local session
+      if (!authUser) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          authUser = session.user;
+        }
+      }
+
+      if (authUser) {
         // Query user's real profile from Supabase profiles table
-        let fullName = user.user_metadata?.full_name;
-        let phoneNumber = user.user_metadata?.phone_number;
+        let fullName = authUser.user_metadata?.full_name;
+        let phoneNumber = authUser.user_metadata?.phone_number;
 
         try {
           const { data: dbProfile } = await supabase
             .from('profiles')
             .select('full_name, phone_number')
-            .eq('id', user.id)
+            .eq('id', authUser.id)
             .single();
 
           if (dbProfile?.full_name) fullName = dbProfile.full_name;
@@ -74,48 +90,34 @@ export default function DashboardPage() {
           // Use metadata fallback
         }
 
-        const resolvedName = fullName || user.email?.split('@')[0] || 'Customer';
+        const resolvedName = fullName || authUser.email?.split('@')[0] || 'Member';
         const firstName = resolvedName.split(' ')[0] || 'Member';
 
         setProfile({
           firstName,
           fullName: resolvedName,
-          email: user.email || '',
+          email: authUser.email || '',
           phoneNumber: phoneNumber || '',
         });
 
         // Query available balance from Obiba ledger API
-        const res = await fetch('/api/wallet');
-        if (res.ok) {
-          const walletData = await res.json();
-          setBalanceUsdc(walletData.availableUsdc || 0.0);
-          setIndicativeGhs(walletData.indicativeGhsEquivalent || 0.0);
-        }
-      } else {
-        // Fallback check: check getSession before redirecting
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const authUser = session.user;
-          const resolvedName = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Customer';
-          setProfile({
-            firstName: resolvedName.split(' ')[0] || 'Member',
-            fullName: resolvedName,
-            email: authUser.email || '',
-            phoneNumber: authUser.user_metadata?.phone_number || '',
-          });
+        try {
           const res = await fetch('/api/wallet');
           if (res.ok) {
             const walletData = await res.json();
             setBalanceUsdc(walletData.availableUsdc || 0.0);
             setIndicativeGhs(walletData.indicativeGhsEquivalent || 0.0);
           }
-        } else {
-          window.location.href = '/auth/login?redirect=/dashboard';
-          return;
+        } catch {
+          // Keep default balance
         }
+      } else {
+        // Unauthenticated -> redirect cleanly to login
+        window.location.replace('/auth/login?redirect=/dashboard');
+        return;
       }
-    } catch {
-      // Offline fallback
+    } catch (err) {
+      console.error('Error loading user profile:', err);
     } finally {
       setIsLoading(false);
     }

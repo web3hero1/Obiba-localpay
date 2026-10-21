@@ -11,7 +11,8 @@ import { createClient } from '@/lib/supabase/client';
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTarget = searchParams.get('redirect') || '/dashboard';
+  const rawRedirect = searchParams.get('redirect') || '/dashboard';
+  const redirectTarget = (!rawRedirect.startsWith('/auth') || rawRedirect.startsWith('/auth/verified')) ? rawRedirect : '/dashboard';
   const urlError = searchParams.get('error');
 
   const initialEmail = searchParams.get('email') || '';
@@ -22,12 +23,32 @@ function LoginContent() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(urlError);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (urlError) {
       setServerError(urlError);
     }
   }, [urlError]);
+
+  // If user already has an active verified session, take them directly to the dashboard
+  useEffect(() => {
+    async function checkExistingSession() {
+      try {
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user && session.user.email_confirmed_at) {
+          setIsRedirecting(true);
+          window.location.replace(redirectTarget);
+        }
+      } catch {
+        // Continue showing login screen
+      }
+    }
+    checkExistingSession();
+  }, [redirectTarget]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,10 +100,9 @@ function LoginContent() {
         return;
       }
 
-      // Success -> Give cookie jar 150ms to flush, then execute full page navigation
-      setTimeout(() => {
-        window.location.href = redirectTarget;
-      }, 150);
+      // Success -> Immediately navigate to dashboard
+      setIsRedirecting(true);
+      window.location.replace(redirectTarget);
     } catch (err: any) {
       console.error('Login error:', err);
       const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -177,10 +197,15 @@ function LoginContent() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isRedirecting}
           className="w-full mt-2 py-3.5 px-6 bg-[#0A84FF] hover:bg-[#0066CC] disabled:opacity-60 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-[0.99] transition duration-150"
         >
-          {isLoading ? (
+          {isRedirecting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Opening Dashboard...</span>
+            </>
+          ) : isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Signing in...</span>

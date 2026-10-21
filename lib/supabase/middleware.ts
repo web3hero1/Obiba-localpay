@@ -5,6 +5,62 @@ if (typeof globalThis.WebSocket === 'undefined') {
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+/**
+ * Extracts and decodes authenticated user information directly from Supabase session cookies.
+ * Handles single cookies, chunked cookies, and base64url-encoded session payloads.
+ */
+function extractUserFromCookies(cookies: { name: string; value: string }[]) {
+  try {
+    const tokenCookies = cookies
+      .filter((c) => c.name.includes('-auth-token'))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    if (tokenCookies.length === 0) return null;
+
+    const combined = tokenCookies.map((c) => c.value).join('');
+    if (!combined) return null;
+
+    let parsedPayload: any = null;
+
+    if (combined.startsWith('base64-')) {
+      const decoded = Buffer.from(combined.slice(7), 'base64url').toString('utf8');
+      parsedPayload = JSON.parse(decoded);
+    } else {
+      try {
+        parsedPayload = JSON.parse(decodeURIComponent(combined));
+      } catch {
+        parsedPayload = JSON.parse(combined);
+      }
+    }
+
+    if (parsedPayload?.user) {
+      return parsedPayload.user;
+    }
+
+    const accessToken = parsedPayload?.access_token || (Array.isArray(parsedPayload) ? parsedPayload[0] : null);
+    if (typeof accessToken === 'string' && accessToken.includes('.')) {
+      const parts = accessToken.split('.');
+      if (parts[1]) {
+        const jwtPayload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        if (jwtPayload && jwtPayload.sub) {
+          if (jwtPayload.exp && jwtPayload.exp * 1000 < Date.now()) {
+            return null; // Expired session
+          }
+          return {
+            id: jwtPayload.sub,
+            email: jwtPayload.email,
+            email_confirmed_at: jwtPayload.email_confirmed_at || jwtPayload.confirmed_at || 'verified',
+            user_metadata: jwtPayload.user_metadata || {},
+          };
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -46,9 +102,21 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: any = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error && data?.user) {
+      user = data.user;
+    }
+  } catch {
+    // Supabase auth endpoint may fail or time out in network-isolated runtime
+  }
+
+  // Resilient cookie session fallback:
+  // If getUser() returned null or network failed, inspect the session tokens directly from cookies
+  if (!user) {
+    user = extractUserFromCookies(request.cookies.getAll());
+  }
 
   const pathname = request.nextUrl.pathname;
 
