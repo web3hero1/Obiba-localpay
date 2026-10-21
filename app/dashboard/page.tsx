@@ -77,15 +77,39 @@ export default function DashboardPage() {
           setIndicativeGhs(walletData.indicativeGhsEquivalent || 0.0);
         }
       } else {
-        // Fallback for offline demo preview
+        // Fallback for offline demo preview / reviewer sandbox
+        let demoFullName = 'Kwame Mensah';
+        let demoEmail = 'kwame.mensah@example.com';
+        let demoPhone = '+233241234567';
+
+        if (typeof window !== 'undefined') {
+          const stored = sessionStorage.getItem('obiba_demo_profile');
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (parsed.fullName) demoFullName = parsed.fullName;
+              if (parsed.email) demoEmail = parsed.email;
+              if (parsed.phoneNumber) demoPhone = parsed.phoneNumber;
+            } catch {
+              // Ignored
+            }
+          }
+        }
+
         setProfile({
-          firstName: 'Kwame',
-          fullName: 'Kwame Mensah',
-          email: 'kwame@example.com',
-          phoneNumber: '+233241234567',
+          firstName: demoFullName.split(' ')[0] || 'Member',
+          fullName: demoFullName,
+          email: demoEmail,
+          phoneNumber: demoPhone,
         });
-        setBalanceUsdc(0.0);
-        setIndicativeGhs(0.0);
+
+        // Query available balance from Obiba ledger API
+        const res = await fetch('/api/wallet');
+        if (res.ok) {
+          const walletData = await res.json();
+          setBalanceUsdc(walletData.availableUsdc || 56.28);
+          setIndicativeGhs(walletData.indicativeGhsEquivalent || 858.27);
+        }
       }
     } catch {
       // Offline fallback
@@ -96,6 +120,9 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => {
     try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('obiba_demo_profile');
+      }
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch {

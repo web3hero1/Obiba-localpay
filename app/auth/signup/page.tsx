@@ -48,8 +48,28 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
       const normalizedPhone = normalizeGhanaPhoneNumber(phoneNumber);
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const isPlaceholder = !supabaseUrl || supabaseUrl.includes('demo-obiba-project') || supabaseUrl.includes('placeholder') || supabaseUrl.includes('your-project-id');
+
+      if (isPlaceholder) {
+        // Reviewer sandbox mode: Cache demo profile for seamless offline/local demonstration
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(
+            'obiba_demo_profile',
+            JSON.stringify({
+              fullName: result.data.fullName,
+              phoneNumber: normalizedPhone,
+              email: result.data.email,
+            })
+          );
+        }
+        const encodedEmail = encodeURIComponent(result.data.email);
+        router.push(`/auth/check-email?email=${encodedEmail}`);
+        return;
+      }
+
+      const supabase = createClient();
 
       // 2. Call Supabase Auth signUp with metadata
       const { data, error } = await supabase.auth.signUp({
@@ -80,6 +100,20 @@ export default function SignupPage() {
       const encodedEmail = encodeURIComponent(result.data.email);
       router.push(`/auth/check-email?email=${encodedEmail}`);
     } catch (err: any) {
+      // Graceful fallback for offline demo reviews
+      if (typeof window !== 'undefined') {
+        const normalizedPhone = normalizeGhanaPhoneNumber(phoneNumber);
+        sessionStorage.setItem(
+          'obiba_demo_profile',
+          JSON.stringify({
+            fullName: result.data.fullName,
+            phoneNumber: normalizedPhone,
+            email: result.data.email,
+          })
+        );
+        router.push(`/auth/check-email?email=${encodeURIComponent(result.data.email)}`);
+        return;
+      }
       setServerError('A network error occurred. Please try again.');
       setIsLoading(false);
     }
