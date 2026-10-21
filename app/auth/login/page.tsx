@@ -79,9 +79,8 @@ function LoginContent() {
         return;
       }
 
-      // Success -> Redirect to safe target
-      router.push(redirectTarget);
-      router.refresh();
+      // Success -> Redirect to safe target with full window navigation to commit cookies
+      window.location.href = redirectTarget;
     } catch (err: any) {
       console.error('Login error:', err);
       const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL;

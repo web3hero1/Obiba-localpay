@@ -92,9 +92,27 @@ export default function DashboardPage() {
           setIndicativeGhs(walletData.indicativeGhsEquivalent || 0.0);
         }
       } else {
-        // Real production enforcement: unauthenticated users are redirected to login
-        router.push('/auth/login?redirect=/dashboard');
-        return;
+        // Fallback check: check getSession before redirecting
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const authUser = session.user;
+          const resolvedName = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Customer';
+          setProfile({
+            firstName: resolvedName.split(' ')[0] || 'Member',
+            fullName: resolvedName,
+            email: authUser.email || '',
+            phoneNumber: authUser.user_metadata?.phone_number || '',
+          });
+          const res = await fetch('/api/wallet');
+          if (res.ok) {
+            const walletData = await res.json();
+            setBalanceUsdc(walletData.availableUsdc || 0.0);
+            setIndicativeGhs(walletData.indicativeGhsEquivalent || 0.0);
+          }
+        } else {
+          window.location.href = '/auth/login?redirect=/dashboard';
+          return;
+        }
       }
     } catch {
       // Offline fallback

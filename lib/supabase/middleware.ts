@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
@@ -11,7 +11,7 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Guard against missing Supabase credentials
+  // Guard against missing credentials
   if (!supabaseUrl || !supabaseAnonKey) {
     const pathname = request.nextUrl.pathname;
     if (pathname === '/') {
@@ -27,42 +27,17 @@ export async function updateSession(request: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value;
+      getAll() {
+        return request.cookies.getAll();
       },
-      set(name: string, value: string, options: CookieOptions) {
-        request.cookies.set({
-          name,
-          value,
-          ...options,
-        });
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({
-          request: {
-            headers: request.headers,
-          },
+          request,
         });
-        response.cookies.set({
-          name,
-          value,
-          ...options,
-        });
-      },
-      remove(name: string, options: CookieOptions) {
-        request.cookies.set({
-          name,
-          value: '',
-          ...options,
-        });
-        response = NextResponse.next({
-          request: {
-            headers: request.headers,
-          },
-        });
-        response.cookies.set({
-          name,
-          value: '',
-          ...options,
-        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options)
+        );
       },
     },
   });
@@ -81,7 +56,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth', request.url));
   }
 
-  // 2. Protect /dashboard and internal API routes
+  // 2. Protect /dashboard and authenticated routes
   if (pathname.startsWith('/dashboard')) {
     if (!user) {
       const redirectUrl = new URL('/auth/login', request.url);
@@ -96,7 +71,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // 3. Redirect authenticated & verified users away from auth pages
+  // 3. Redirect authenticated & verified users away from auth landing pages
   if (user && user.email_confirmed_at) {
     if (pathname === '/auth' || pathname === '/auth/login' || pathname === '/auth/signup') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
