@@ -107,6 +107,45 @@ OK
 
 ---
 
+## 🔐 Authentication & Profile Architecture
+
+Obiba implements a complete, bank-grade **Email + Password** authentication system adhering strictly to consumer fintech standards (no crypto wallet connection required to sign up):
+
+### 1. Account Credentials & Validation
+- **Full Legal Name**: Enforces min 2 characters, valid name characters.
+- **Ghana Phone Number**: Default `+233`, automatically validated and normalized into E.164 format (e.g. `024 123 4567` $\to$ `+233241234567`). Stored as unverified contact info.
+- **Email Address**: Strictly validated, lowercased, and verified before access to financial services is granted.
+- **Strong Password Policy**: Enforces $\ge 12$ characters, uppercase, lowercase, number, and special character with interactive visual strength indicator.
+
+### 2. Routes & User Journey
+- `/auth`: Clean, branded Welcome Screen ("Your money, made simple").
+- `/auth/signup`: Validated account creation screen with password strength checklist.
+- `/auth/check-email`: Email confirmation screen with masked address (`k***h@example.com`) and rate-limited resend countdown.
+- `/auth/confirm`: Server-Side Route handler processing Supabase PKCE and `token_hash` verification for signups and password recoveries.
+- `/auth/verified`: Email verification confirmation screen welcoming the user.
+- `/auth/login`: Sign-in screen with unverified-email diversion and generic error protection against email enumeration.
+- `/auth/forgot-password`: Password recovery request screen.
+- `/auth/reset-password`: Set new password screen with session verification.
+- `/dashboard`: Protected dashboard with user profile metadata, double-entry USDC wallet balance, and everyday payments.
+- `/`: Redirects directly to `/auth` or `/dashboard` based on authentication session.
+
+### 3. Supabase PostgreSQL Schema & Security
+- `public.profiles` table linked via UUID foreign key to `auth.users(id)` with `ON DELETE CASCADE`.
+- Database trigger `handle_new_user()` atomically inserts profile metadata on `auth.users` creation.
+- Strict **Row Level Security (RLS)**:
+  - Users can read only their own profile: `auth.uid() = id`.
+  - Users can update only their own contact info (`full_name`, `phone_number`), while `verification_status` remains immutable from client calls.
+- Next.js SSR middleware (`middleware.ts`) protects authenticated routes, validates sessions, and redirects unconfirmed users.
+
+### 4. Running the Authentication Test Suite
+Obiba includes 23 automated tests covering Ghana phone normalization, password strength scoring, and Zod input schemas:
+
+```bash
+npm run test:auth
+```
+
+---
+
 ## 🔒 Security & Financial Standards
 
 - **No Float Arithmetic**: All ledger values and fee calculations use integer minor units.
