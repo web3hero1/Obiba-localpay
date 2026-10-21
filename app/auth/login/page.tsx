@@ -49,28 +49,6 @@ function LoginContent() {
     setIsLoading(true);
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const isPlaceholder = !supabaseUrl || supabaseUrl.includes('demo-obiba-project') || supabaseUrl.includes('placeholder') || supabaseUrl.includes('your-project-id');
-
-      if (isPlaceholder) {
-        // Reviewer sandbox mode: Cache demo user for seamless offline/local demonstration
-        if (typeof window !== 'undefined') {
-          const existing = sessionStorage.getItem('obiba_demo_profile');
-          const profileData = existing ? JSON.parse(existing) : {};
-          sessionStorage.setItem(
-            'obiba_demo_profile',
-            JSON.stringify({
-              fullName: profileData.fullName || 'Kwame Mensah',
-              phoneNumber: profileData.phoneNumber || '+233241234567',
-              email: result.data.email,
-            })
-          );
-        }
-        router.push(redirectTarget);
-        router.refresh();
-        return;
-      }
-
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
         email: result.data.email,
@@ -100,25 +78,17 @@ function LoginContent() {
         return;
       }
 
-      // 2. Success -> Redirect to safe target
+      // Success -> Redirect to safe target
       router.push(redirectTarget);
       router.refresh();
-    } catch {
-      // Graceful fallback for offline demo review
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(
-          'obiba_demo_profile',
-          JSON.stringify({
-            fullName: 'Kwame Mensah',
-            phoneNumber: '+233241234567',
-            email: result.data.email,
-          })
-        );
-        router.push(redirectTarget);
-        router.refresh();
-        return;
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder') || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('demo-obiba-project');
+      if (isMissingConfig) {
+        setServerError('Supabase configuration missing: Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local to enable live authentication.');
+      } else {
+        setServerError(err.message || 'A network error occurred while communicating with the authentication service. Please try again.');
       }
-      setServerError('A connection error occurred. Please try again.');
       setIsLoading(false);
     }
   };

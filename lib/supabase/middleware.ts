@@ -11,11 +11,16 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // In demo / offline sandbox mode without live Supabase keys, allow bypass for UI preview
-  if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder') || supabaseUrl.includes('demo-obiba-project')) {
+  // Guard against missing Supabase credentials
+  if (!supabaseUrl || !supabaseAnonKey) {
     const pathname = request.nextUrl.pathname;
     if (pathname === '/') {
       return NextResponse.redirect(new URL('/auth', request.url));
+    }
+    if (pathname.startsWith('/dashboard')) {
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(redirectUrl);
     }
     return response;
   }

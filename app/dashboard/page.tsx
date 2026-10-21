@@ -57,16 +57,31 @@ export default function DashboardPage() {
       } = await supabase.auth.getUser();
 
       if (user) {
-        const metadata = user.user_metadata || {};
-        const fullName = metadata.full_name || 'Kwame Mensah';
-        const firstName = fullName.split(' ')[0] || 'Member';
-        const phoneNumber = metadata.phone_number || '+233241234567';
+        // Query user's real profile from Supabase profiles table
+        let fullName = user.user_metadata?.full_name;
+        let phoneNumber = user.user_metadata?.phone_number;
+
+        try {
+          const { data: dbProfile } = await supabase
+            .from('profiles')
+            .select('full_name, phone_number')
+            .eq('id', user.id)
+            .single();
+
+          if (dbProfile?.full_name) fullName = dbProfile.full_name;
+          if (dbProfile?.phone_number) phoneNumber = dbProfile.phone_number;
+        } catch {
+          // Use metadata fallback
+        }
+
+        const resolvedName = fullName || user.email?.split('@')[0] || 'Customer';
+        const firstName = resolvedName.split(' ')[0] || 'Member';
 
         setProfile({
           firstName,
-          fullName,
+          fullName: resolvedName,
           email: user.email || '',
-          phoneNumber,
+          phoneNumber: phoneNumber || '',
         });
 
         // Query available balance from Obiba ledger API
@@ -77,39 +92,9 @@ export default function DashboardPage() {
           setIndicativeGhs(walletData.indicativeGhsEquivalent || 0.0);
         }
       } else {
-        // Fallback for offline demo preview / reviewer sandbox
-        let demoFullName = 'Kwame Mensah';
-        let demoEmail = 'kwame.mensah@example.com';
-        let demoPhone = '+233241234567';
-
-        if (typeof window !== 'undefined') {
-          const stored = sessionStorage.getItem('obiba_demo_profile');
-          if (stored) {
-            try {
-              const parsed = JSON.parse(stored);
-              if (parsed.fullName) demoFullName = parsed.fullName;
-              if (parsed.email) demoEmail = parsed.email;
-              if (parsed.phoneNumber) demoPhone = parsed.phoneNumber;
-            } catch {
-              // Ignored
-            }
-          }
-        }
-
-        setProfile({
-          firstName: demoFullName.split(' ')[0] || 'Member',
-          fullName: demoFullName,
-          email: demoEmail,
-          phoneNumber: demoPhone,
-        });
-
-        // Query available balance from Obiba ledger API
-        const res = await fetch('/api/wallet');
-        if (res.ok) {
-          const walletData = await res.json();
-          setBalanceUsdc(walletData.availableUsdc || 56.28);
-          setIndicativeGhs(walletData.indicativeGhsEquivalent || 858.27);
-        }
+        // Real production enforcement: unauthenticated users are redirected to login
+        router.push('/auth/login?redirect=/dashboard');
+        return;
       }
     } catch {
       // Offline fallback
@@ -120,9 +105,6 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => {
     try {
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('obiba_demo_profile');
-      }
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch {

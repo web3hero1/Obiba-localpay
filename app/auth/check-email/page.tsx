@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Mail, ArrowLeft, ArrowRight, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, ArrowLeft, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { AuthCard } from '@/components/auth/auth-card';
 import { createClient } from '@/lib/supabase/client';
 
@@ -119,32 +119,24 @@ function CheckEmailContent() {
         )}
 
         {/* Resend Action */}
-        <div className="pt-2 space-y-2">
+        <div className="pt-2">
           <button
             type="button"
             onClick={handleResend}
             disabled={isResending || resendCooldown > 0}
-            className="w-full py-3 px-4 rounded-2xl border border-[#E5E5EA] bg-white hover:bg-gray-50 text-xs font-bold text-[#0B0B0C] flex items-center justify-center gap-2 transition disabled:opacity-50"
+            className="w-full py-3.5 px-4 rounded-2xl border border-[#E5E5EA] bg-white hover:bg-gray-50 text-xs font-bold text-[#0B0B0C] flex items-center justify-center gap-2 transition disabled:opacity-50"
           >
             {isResending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-[#0A84FF]" />
-                <span>Resending link...</span>
+                <span>Resending verification email...</span>
               </>
             ) : resendCooldown > 0 ? (
-              <span>Resend link in {resendCooldown}s</span>
+              <span>Resend email in {resendCooldown}s</span>
             ) : (
               <span>Resend Verification Email</span>
             )}
           </button>
-
-          <Link
-            href="/auth/verified"
-            className="w-full py-2.5 px-4 rounded-2xl bg-[#F7F8FA] hover:bg-gray-100 border border-[#E5E5EA] text-xs font-semibold text-[#0A84FF] flex items-center justify-center gap-1.5 transition"
-          >
-            <span>Simulate Verification Link (Reviewer Demo)</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
         </div>
       </div>
     </AuthCard>

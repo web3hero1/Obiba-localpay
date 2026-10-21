@@ -48,30 +48,10 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const normalizedPhone = normalizeGhanaPhoneNumber(phoneNumber);
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const isPlaceholder = !supabaseUrl || supabaseUrl.includes('demo-obiba-project') || supabaseUrl.includes('placeholder') || supabaseUrl.includes('your-project-id');
-
-      if (isPlaceholder) {
-        // Reviewer sandbox mode: Cache demo profile for seamless offline/local demonstration
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(
-            'obiba_demo_profile',
-            JSON.stringify({
-              fullName: result.data.fullName,
-              phoneNumber: normalizedPhone,
-              email: result.data.email,
-            })
-          );
-        }
-        const encodedEmail = encodeURIComponent(result.data.email);
-        router.push(`/auth/check-email?email=${encodedEmail}`);
-        return;
-      }
-
       const supabase = createClient();
+      const normalizedPhone = normalizeGhanaPhoneNumber(phoneNumber);
 
-      // 2. Call Supabase Auth signUp with metadata
+      // Call Supabase Auth signUp with metadata and email confirmation redirect
       const { data, error } = await supabase.auth.signUp({
         email: result.data.email,
         password: result.data.password,
@@ -96,25 +76,17 @@ export default function SignupPage() {
         return;
       }
 
-      // 3. Success -> Redirect to Check Your Email screen with encoded email
+      // Success -> Redirect to Check Your Email screen with encoded email
       const encodedEmail = encodeURIComponent(result.data.email);
       router.push(`/auth/check-email?email=${encodedEmail}`);
     } catch (err: any) {
-      // Graceful fallback for offline demo reviews
-      if (typeof window !== 'undefined') {
-        const normalizedPhone = normalizeGhanaPhoneNumber(phoneNumber);
-        sessionStorage.setItem(
-          'obiba_demo_profile',
-          JSON.stringify({
-            fullName: result.data.fullName,
-            phoneNumber: normalizedPhone,
-            email: result.data.email,
-          })
-        );
-        router.push(`/auth/check-email?email=${encodeURIComponent(result.data.email)}`);
-        return;
+      console.error('Signup error:', err);
+      const isMissingConfig = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder') || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('demo-obiba-project');
+      if (isMissingConfig) {
+        setServerError('Supabase configuration missing: Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local to dispatch real verification emails.');
+      } else {
+        setServerError(err.message || 'A network error occurred while communicating with the authentication service. Please try again.');
       }
-      setServerError('A network error occurred. Please try again.');
       setIsLoading(false);
     }
   };
